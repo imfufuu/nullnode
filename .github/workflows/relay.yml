@@ -1,10 +1,15 @@
 name: relay
 
-# Manual, optional: deploy the Cloudflare Worker from CI instead of a laptop.
-# Add these repository secrets first:
-#   CLOUDFLARE_API_TOKEN   Workers Scripts:Edit + Account Settings:Read
-#   CLOUDFLARE_ACCOUNT_ID
-#   NULLNODE_RELAY_URL     (optional) the worker url, echoed in the summary
+# Deploys the Cloudflare Worker without a laptop.
+#
+# One-time setup (browser only):
+#   Settings → Secrets and variables → Actions → New repository secret
+#     CLOUDFLARE_API_TOKEN   Workers Scripts:Edit + Account Settings:Read
+#     CLOUDFLARE_ACCOUNT_ID  the 32-character account id
+#
+# After that this workflow runs whenever worker/ changes on main, or on demand
+# from the Actions tab. Until the secrets exist it exits green with a warning
+# instead of failing, so a missing secret never blocks the site pipeline.
 
 on:
   workflow_dispatch:
@@ -13,6 +18,11 @@ on:
         description: "Build only, do not upload"
         type: boolean
         default: false
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - ".github/workflows/relay.yml"
 
 permissions:
   contents: read
@@ -23,28 +33,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check secrets
+
+      - name: Are the credentials present?
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN secret is missing — see docs/CREDENTIALS.md"
-            exit 1
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Relay deploy skipped::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings → Secrets and variables → Actions. See docs/CREDENTIALS.md."
+            {
+              echo "### Relay deploy skipped"
+              echo "No Cloudflare credentials in this repository yet."
+              echo ""
+              echo "Add \`CLOUDFLARE_API_TOKEN\` and \`CLOUDFLARE_ACCOUNT_ID\` under **Settings → Secrets and variables → Actions**, then re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Install
+        if: steps.check.outputs.ready == 'true'
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
       - name: Deploy
+        id: deploy
+        if: steps.check.outputs.ready == 'true'
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CI: "true"
         run: |
-          npm install --no-audit --no-fund
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             npx wrangler deploy --dry-run --outdir .wrangler/tmp
           else
-            npx wrangler deploy
+            npx wrangler deploy 2>&1 | tee /tmp/deploy.log
+            url=$(grep -Eo 'https://[a-zA-Z0-9._-]+\.workers\.dev' /tmp/deploy.log | head -n1)
+            echo "url=$url" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Smoke test the relay
+        if: steps.check.outputs.ready == 'true' && steps.deploy.outputs.url != ''
+        run: node scripts/smoke-test.mjs "${{ steps.deploy.outputs.url }}"
+
       - name: Summary
+        if: steps.check.outputs.ready == 'true'
         run: |
-          echo "### Relay deployed" >> $GITHUB_STEP_SUMMARY
-          echo "Paste the worker url into the site's relay settings, or run \`./scripts/deploy-worker.sh --wire\` locally." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Relay live"
+            echo ""
+            echo "Worker url: \`${{ steps.deploy.outputs.url }}\`"
+            echo ""
+            echo "Wire it into the site: open https://imfufuu.github.io/nullnode/ → room panel → sliders icon → paste the url → Save."
+            echo "Or bake it in: \`./scripts/deploy-worker.sh --wire\` and push."
+          } >> "$GITHUB_STEP_SUMMARY"
