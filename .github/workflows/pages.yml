@@ -1,8 +1,10 @@
 name: pages
 
 on:
+  # `main` is the deploy branch: the github-pages environment only accepts
+  # deployments built from it (that is GitHub's default branch policy, not ours).
   push:
-    branches: [main, "arena/**"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
