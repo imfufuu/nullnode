@@ -82,9 +82,40 @@ Full detail: docs/CREDENTIALS.md
 TXT
   exit 1
 fi
+# shape checks catch the two mistakes that look like auth errors later
+case "$CLOUDFLARE_ACCOUNT_ID" in
+  *[!0-9a-fA-F]*) die "CLOUDFLARE_ACCOUNT_ID must be 32 hex characters (got something else)" ;;
+esac
+[ ${#CLOUDFLARE_ACCOUNT_ID} -eq 32 ] || die "CLOUDFLARE_ACCOUNT_ID must be exactly 32 hex characters, got ${#CLOUDFLARE_ACCOUNT_ID}"
+
 say "  token      ${DIM}${CLOUDFLARE_API_TOKEN:0:6}…${CLOUDFLARE_API_TOKEN: -4}${X}"
 say "  account    ${DIM}$CLOUDFLARE_ACCOUNT_ID${X}"
 say "  worker     ${DIM}$WORKER_NAME${X}"
+
+# ---- token preflight ------------------------------------------------------
+# Answer "is this token good?" in one second instead of after a deploy dump.
+if command -v curl >/dev/null 2>&1; then
+  step "Verifying the token"
+  verify_body=$(curl -s --max-time 12 \
+    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+    -H "Content-Type: application/json" \
+    "https://api.cloudflare.com/client/v4/user/tokens/verify" 2>/dev/null || true)
+  verify_status=$(printf '%s' "$verify_body" | tr -d '\n' | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p' | head -n1)
+  case "$verify_status" in
+    active)
+      say "  ${A}active${X}"
+      ;;
+    "")
+      say "  ${DIM}no answer from api.cloudflare.com — skipping the preflight${X}"
+      ;;
+    *)
+      if printf '%s' "$verify_body" | grep -qi "10000\|Authentication error"; then
+        die "Cloudflare rejected this token (authentication error). Recreate it with Workers Scripts:Edit."
+      fi
+      die "token is not active (status: $verify_status)"
+      ;;
+  esac
+fi
 
 # ---- toolchain ------------------------------------------------------------
 command -v node >/dev/null 2>&1 || die "node 18+ is required (https://nodejs.org)"
@@ -104,6 +135,7 @@ DEPLOY_ARGS=(deploy --name "$WORKER_NAME")
 set +e
 out=$(CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
       CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+      CI=true NO_COLOR=1 \
       npx --no-install wrangler "${DEPLOY_ARGS[@]}" 2>&1)
 code=$?
 set -e
