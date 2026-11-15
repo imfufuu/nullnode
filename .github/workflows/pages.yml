@@ -28,7 +28,10 @@ jobs:
       - name: Static audit (scripts, ids, entities, emoji, meta)
         run: node scripts/verify.mjs
 
-      - uses: actions/configure-pages@v5
+      - name: Enable Pages if it is not on yet
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Assemble site
         run: |
