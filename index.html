@@ -1357,8 +1357,9 @@ cd nullnode
   };
   function paintIcons() {
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
-      try { window.lucide.createIcons(); return; } catch (e) {}
+      try { window.lucide.createIcons(); } catch (e) {}
     }
+    // Whatever the cdn did or did not do, make sure nothing is left blank.
     $$('i[data-lucide]').forEach(function (el) {
       var name = el.getAttribute('data-lucide');
       if (FALLBACK[name]) {

@@ -90,6 +90,9 @@ The repository ships `.github/workflows/pages.yml`, which audits `index.html`
 and publishes it as a Pages artefact on every push to `main` or `arena/**`.
 
 One-time, in the browser: **Settings → Pages → Source: GitHub Actions**.
+Nothing else to configure — no build command, no output folder, no `gh-pages`
+branch. (A token used *inside* Actions cannot create a Pages site, so this is the
+one switch a human has to flip.)
 
 Then either push, or let the script do the rest:
 
