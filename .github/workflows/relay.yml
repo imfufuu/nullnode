@@ -1,0 +1,50 @@
+name: relay
+
+# Manual, optional: deploy the Cloudflare Worker from CI instead of a laptop.
+# Add these repository secrets first:
+#   CLOUDFLARE_API_TOKEN   Workers Scripts:Edit + Account Settings:Read
+#   CLOUDFLARE_ACCOUNT_ID
+#   NULLNODE_RELAY_URL     (optional) the worker url, echoed in the summary
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build only, do not upload"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: wrangler deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is missing — see docs/CREDENTIALS.md"
+            exit 1
+          fi
+      - name: Deploy
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install --no-audit --no-fund
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            npx wrangler deploy --dry-run --outdir .wrangler/tmp
+          else
+            npx wrangler deploy
+          fi
+      - name: Summary
+        run: |
+          echo "### Relay deployed" >> $GITHUB_STEP_SUMMARY
+          echo "Paste the worker url into the site's relay settings, or run \`./scripts/deploy-worker.sh --wire\` locally." >> $GITHUB_STEP_SUMMARY

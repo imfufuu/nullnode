@@ -1,0 +1,29 @@
+# NullNode relay — Cloudflare Worker + one Durable Object.
+# Deploy with:  ./scripts/deploy-worker.sh   (or: npx wrangler@4 deploy)
+name = "nullnode-relay"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# The Durable Object replaces every database this app would otherwise need.
+# One object per room key; it holds nothing but two open sockets.
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[vars]
+# Comma separated list of origins allowed to open the signalling socket.
+# "*" is fine for a public demo; set it to your Pages origin for a tight deploy:
+#   ALLOWED_ORIGINS = "https://imfufuu.github.io,http://localhost:8000"
+ALLOWED_ORIGINS = "*"
+# Seconds a room key stays alive while empty (alarm cleans up after the last peer).
+ROOM_TTL_SECONDS = "7200"
+# Two people. That is the entire product.
+MAX_PEERS = "2"
+
+[observability]
+enabled = true

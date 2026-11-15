@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build + deploy artefacts
+.deploy/
+.wrangler/
+dist/
+_site/
+
+# local secrets and env
+.env
+.env.*
+deploy.env
+!.env.example
+!deploy.env.example
+.dev.vars
+.dev.vars.*
+
+# scratch
+.devtools/
+.DS_Store
+*.log

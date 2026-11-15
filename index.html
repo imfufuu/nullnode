@@ -1,0 +1,2532 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NullNode — anonymous peer-to-peer video, one room at a time</title>
+<meta name="description" content="NullNode is a single-purpose video line: two people, one encrypted peer-to-peer connection, no accounts, no storage, no recording. The room is burned when the call ends.">
+<meta name="theme-color" content="#08090a">
+<meta name="color-scheme" content="dark">
+<script>document.documentElement.classList.remove("no-js");document.documentElement.classList.add("js");</script>
+<link rel="canonical" href="https://imfufuu.github.io/nullnode/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NullNode — the room that never existed">
+<meta property="og:description" content="Two faces, no middleman. Anonymous 1:1 video over an encrypted peer-to-peer line. Nothing is stored, nothing is recorded.">
+<meta property="og:url" content="https://imfufuu.github.io/nullnode/">
+<meta property="og:site_name" content="NullNode">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NullNode — the room that never existed">
+<meta name="twitter:description" content="Anonymous 1:1 video. No accounts. No logs. No recording.">
+<meta name="nullnode-relay" content="">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090a'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='none' stroke='%23c8ff3d' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23c8ff3d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+/* ============================================================
+   NULL/NODE — design tokens
+   ============================================================ */
+:root{
+  --ink:#08090a;
+  --ink-2:#0d0f10;
+  --ink-3:#121516;
+  --bone:#ede9df;
+  --bone-dim:rgba(237,233,223,.58);
+  --bone-ghost:rgba(237,233,223,.32);
+  --line:rgba(237,233,223,.13);
+  --line-soft:rgba(237,233,223,.07);
+  --acid:#c8ff3d;
+  --acid-dim:rgba(200,255,61,.16);
+  --rust:#ff4d22;
+  --font-display:"Instrument Serif",ui-serif,Georgia,serif;
+  --font-sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
+  --ease-spring:cubic-bezier(.16,1.02,.28,1);
+  --ease-out:cubic-bezier(.19,1,.22,1);
+  --gutter:clamp(18px,4vw,64px);
+  --radius:22px;
+}
+
+/* ============================================================
+   base
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:auto}
+body{
+  margin:0;background:var(--ink);color:var(--bone);
+  font-family:var(--font-sans);font-weight:400;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+body.is-locked{overflow:hidden}
+img,svg,video,canvas{display:block;max-width:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acid);outline-offset:3px;border-radius:2px}
+::selection{background:var(--acid);color:var(--ink)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+.mono{font-family:var(--font-mono);font-weight:400;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.serif{font-family:var(--font-display);font-weight:400;letter-spacing:-.02em}
+.dim{color:var(--bone-dim)}
+.acid{color:var(--acid)}
+.shell{width:100%;max-width:1680px;margin-inline:auto;padding-inline:var(--gutter)}
+.hair{height:1px;background:var(--line);width:100%}
+
+/* ============================================================
+   atmosphere: grain + vignette
+   ============================================================ */
+.grain{
+  position:fixed;inset:-50%;z-index:9000;pointer-events:none;opacity:.13;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  animation:grainShift 6s steps(6) infinite;mix-blend-mode:overlay;
+}
+@keyframes grainShift{
+  0%{transform:translate3d(0,0,0)}20%{transform:translate3d(-2%,1.5%,0)}
+  40%{transform:translate3d(1.5%,-1%,0)}60%{transform:translate3d(-1%,-2%,0)}
+  80%{transform:translate3d(2%,1%,0)}100%{transform:translate3d(0,0,0)}
+}
+.vignette{position:fixed;inset:0;z-index:8990;pointer-events:none;
+  background:radial-gradient(125% 95% at 50% 38%,transparent 46%,rgba(0,0,0,.38) 100%)}
+
+/* ============================================================
+   custom cursor
+   ============================================================ */
+.cursor,.cursor-dot{position:fixed;top:0;left:0;z-index:9500;pointer-events:none;will-change:transform}
+.cursor{
+  width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+  border:1px solid rgba(237,233,223,.55);mix-blend-mode:difference;
+  transition:width .35s var(--ease-spring),height .35s var(--ease-spring),margin .35s var(--ease-spring),background .3s,border-color .3s,opacity .3s;
+  display:grid;place-items:center;
+}
+.cursor span{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);opacity:0;transform:scale(.7);transition:opacity .2s,transform .3s var(--ease-spring);white-space:nowrap}
+.cursor-dot{width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:var(--acid)}
+body.cursor-hot .cursor{width:74px;height:74px;margin:-37px 0 0 -37px;background:var(--acid);border-color:transparent;mix-blend-mode:normal}
+body.cursor-hot .cursor span{opacity:1;transform:scale(1)}
+body.cursor-hot .cursor-dot{opacity:0}
+body.cursor-copy .cursor{width:86px;height:86px;margin:-43px 0 0 -43px;background:var(--bone);border-color:transparent;mix-blend-mode:normal}
+body.cursor-copy .cursor span{opacity:1;transform:scale(1)}
+body.cursor-copy .cursor-dot{opacity:0}
+@media (hover:none),(pointer:coarse){.cursor,.cursor-dot{display:none}}
+
+/* ============================================================
+   preloader
+   ============================================================ */
+#boot{position:fixed;inset:0;z-index:9800;display:grid;place-items:center;background:var(--ink);
+  transition:transform 1s var(--ease-out),opacity .6s ease}
+@supports (clip-path:inset(0)){
+  #boot{transition:clip-path 1.05s var(--ease-out),opacity .7s ease}
+  #boot.done{clip-path:inset(0 0 100% 0);opacity:0;pointer-events:none}
+}
+#boot.done{opacity:0;pointer-events:none}
+.boot-inner{width:min(92vw,560px);display:grid;gap:22px}
+.boot-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.boot-mark{font-family:var(--font-display);font-size:clamp(30px,6vw,44px);letter-spacing:-.02em;line-height:1}
+.boot-mark em{font-style:italic;color:var(--acid)}
+.boot-line{height:1px;background:rgba(237,233,223,.16);position:relative;overflow:hidden}
+.boot-line i{position:absolute;inset:0;background:var(--acid);transform:scaleX(0);transform-origin:left;transition:transform .18s linear}
+.boot-log{display:grid;gap:6px;min-height:64px}
+.boot-log p{margin:0;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost);opacity:0;transform:translateY(6px);transition:opacity .3s,transform .35s var(--ease-out)}
+.boot-log p.on{opacity:1;transform:none}
+.boot-log p b{color:var(--bone);font-weight:400}
+.boot-count{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--bone-dim)}
+
+/* ============================================================
+   nav
+   ============================================================ */
+.nav{position:fixed;top:0;left:0;right:0;z-index:800;transition:transform .5s var(--ease-out),background .4s,border-color .4s;
+  border-bottom:1px solid transparent}
+.nav.scrolled{background:rgba(8,9,10,.78);backdrop-filter:blur(14px) saturate(140%);border-bottom-color:var(--line)}
+.nav.hide{transform:translateY(-102%)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:20px;height:74px;padding-inline:var(--gutter)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+.brand .node{width:9px;height:9px;border-radius:50%;background:var(--acid);box-shadow:0 0 0 3px rgba(200,255,61,.14);animation:pulse 2.6s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.78)}}
+.brand b{font-weight:500;letter-spacing:.22em}
+.brand span.slash{color:var(--bone-ghost)}
+.nav-links{display:flex;align-items:center;gap:clamp(14px,2.4vw,34px)}
+.nav-link{position:relative;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim);
+  padding:6px 0;overflow:hidden;height:22px;display:block}
+.nav-link i{display:block;transition:transform .42s var(--ease-out);font-style:normal}
+.nav-link i+i{position:absolute;left:0;top:100%;color:var(--bone)}
+.nav-link:hover i{transform:translateY(-100%)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border:1px solid var(--line);border-radius:100px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);white-space:nowrap}
+.chip i{width:5px;height:5px;border-radius:50%;background:var(--bone-ghost);transition:background .3s,box-shadow .3s}
+.chip[data-state="live"]{color:var(--bone);border-color:rgba(200,255,61,.4)}
+.chip[data-state="live"] i{background:var(--acid);box-shadow:0 0 8px var(--acid)}
+.chip[data-state="off"] i{background:var(--rust)}
+@media (max-width:900px){.nav-links{display:none}}
+
+/* ============================================================
+   buttons
+   ============================================================ */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  height:52px;padding:0 26px;border-radius:100px;border:1px solid var(--line);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  transition:transform .4s var(--ease-spring),background .35s,color .35s,border-color .35s;
+  will-change:transform;overflow:hidden;white-space:nowrap}
+.btn svg{width:15px;height:15px}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--acid);color:#0a0b06;border-color:var(--acid);font-weight:500}
+.btn-primary:hover{background:var(--bone);border-color:var(--bone)}
+.btn-ghost{color:var(--bone)}
+.btn-ghost:hover{border-color:rgba(237,233,223,.4);background:rgba(237,233,223,.04)}
+.btn-sm{height:38px;padding:0 16px;font-size:10px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.icon-btn{position:relative;display:inline-grid;place-items:center;width:50px;height:50px;border-radius:50%;
+  border:1px solid var(--line);color:var(--bone);transition:transform .35s var(--ease-spring),background .3s,border-color .3s,color .3s}
+.icon-btn svg{width:19px;height:19px}
+.icon-btn:hover{background:rgba(237,233,223,.08);border-color:rgba(237,233,223,.34);transform:translateY(-2px)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn[aria-pressed="false"]{color:var(--rust);border-color:rgba(255,77,34,.42);background:rgba(255,77,34,.07)}
+.icon-btn.danger{background:var(--rust);border-color:var(--rust);color:#1a0602;width:auto;border-radius:100px;padding:0 20px;gap:8px;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase}
+.icon-btn.danger:hover{background:#ff2f00;border-color:#ff2f00}
+.icon-btn .tip{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translate(-50%,4px);opacity:0;pointer-events:none;
+  background:var(--bone);color:var(--ink);font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  padding:5px 9px;border-radius:5px;white-space:nowrap;transition:opacity .22s,transform .3s var(--ease-out)}
+.icon-btn:hover .tip{opacity:1;transform:translate(-50%,0)}
+
+/* ============================================================
+   hero
+   ============================================================ */
+.hero{position:relative;padding-top:clamp(104px,14vh,168px);padding-bottom:clamp(40px,6vw,80px);overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(30px,4vw,56px)}
+@media (min-width:1080px){
+  .hero-grid{grid-template-columns:minmax(0,7.4fr) minmax(0,4.6fr);gap:clamp(24px,3vw,56px)}
+}
+.hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:clamp(20px,3vw,34px)}
+.hero-eyebrow .idx{font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;color:var(--acid)}
+.hero-eyebrow .bar{flex:1;height:1px;background:var(--line);max-width:180px}
+.hero-title{position:relative;margin:0;font-family:var(--font-display);font-weight:400;
+  font-size:clamp(52px,10.6vw,158px);line-height:.84;letter-spacing:-.035em;z-index:2}
+.hero-title .ln{display:block;overflow:hidden;padding-bottom:.06em}
+.hero-title .ln > span{display:block;will-change:transform}
+.hero-title .it{font-style:italic}
+.hero-title .accent{color:var(--acid)}
+.hero-title .outline{
+  -webkit-text-stroke:1px rgba(237,233,223,.5);color:transparent;font-style:normal;
+}
+.hero-title .indent{padding-left:clamp(20px,7vw,120px)}
+.hero-ghost{position:absolute;z-index:0;left:-2vw;top:clamp(40px,7vw,90px);font-family:var(--font-display);
+  font-size:clamp(120px,26vw,420px);line-height:.7;letter-spacing:-.05em;color:transparent;
+  -webkit-text-stroke:1px rgba(237,233,223,.055);pointer-events:none;user-select:none;white-space:nowrap}
+.hero-sub{max-width:46ch;margin:clamp(26px,3.4vw,42px) 0 0;font-size:clamp(14.5px,1.15vw,17px);line-height:1.62;color:var(--bone-dim)}
+.hero-sub strong{color:var(--bone);font-weight:500}
+.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:clamp(26px,3vw,38px)}
+.hero-note{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--bone-ghost);margin-top:18px}
+.hero-note svg{width:12px;height:12px;color:var(--acid)}
+
+/* spec column */
+.spec{position:relative;display:flex;flex-direction:column;gap:14px;align-self:end}
+.spec-card{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:linear-gradient(170deg,rgba(237,233,223,.055),rgba(237,233,223,.012) 40%,transparent);padding:18px}
+.spec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.spec-head .dotset{display:flex;gap:5px}
+.spec-head .dotset i{width:5px;height:5px;border-radius:50%;background:rgba(237,233,223,.22)}
+.spec-head .dotset i:first-child{background:var(--acid)}
+#signal{width:100%;height:132px;border-radius:10px;background:radial-gradient(120% 120% at 50% 0%,rgba(200,255,61,.06),transparent 60%)}
+.spec-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:12px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost)}
+.spec-foot b{color:var(--bone);font-weight:400}
+.badge-spin{position:absolute;right:-2px;top:-34px;width:104px;height:104px;pointer-events:none;z-index:3}
+.badge-spin svg{width:100%;height:100%;animation:spin 22s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.badge-spin text{font-family:var(--font-mono);font-size:7.4px;letter-spacing:.26em;fill:var(--bone-dim);text-transform:uppercase}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);margin-top:clamp(38px,6vw,74px)}
+.stat{padding:20px 18px 20px 0;border-right:1px solid var(--line);display:flex;align-items:baseline;gap:12px}
+.stat:last-child{border-right:0}
+.stat b{font-family:var(--font-display);font-size:clamp(28px,3.4vw,44px);font-weight:400;line-height:1;letter-spacing:-.03em}
+.stat span{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost);line-height:1.5}
+@media (max-width:640px){.stats{grid-template-columns:1fr}.stat{border-right:0;border-bottom:1px solid var(--line-soft);padding:14px 0}.stat:last-child{border-bottom:0}}
+
+/* ============================================================
+   marquee
+   ============================================================ */
+.marquee{position:relative;display:flex;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:16px 0;background:rgba(237,233,223,.015);user-select:none}
+.marquee-track{display:flex;gap:0;flex-shrink:0;min-width:100%;animation:marq 34s linear infinite}
+.marquee:hover .marquee-track{animation-play-state:paused}
+.marquee span{display:inline-flex;align-items:center;gap:26px;padding-right:26px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);white-space:nowrap}
+.marquee span i{width:6px;height:6px;border-radius:50%;background:var(--acid);flex:none}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+/* ============================================================
+   section furniture
+   ============================================================ */
+.section{position:relative;padding:clamp(64px,9vw,132px) 0;border-top:1px solid var(--line)}
+.sec-head{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-bottom:clamp(30px,4vw,54px)}
+@media (min-width:900px){.sec-head{grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:end}}
+.sec-num{display:flex;align-items:center;gap:12px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--bone-ghost);margin-bottom:16px}
+.sec-num b{color:var(--acid);font-weight:400}
+.sec-num .bar{width:44px;height:1px;background:var(--line)}
+h2.sec-title{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(34px,5.4vw,74px);line-height:.94;letter-spacing:-.028em}
+h2.sec-title em{font-style:italic;color:var(--acid)}
+.sec-copy{max-width:52ch;font-size:clamp(14px,1.05vw,15.5px);line-height:1.68;color:var(--bone-dim);margin:0}
+.sec-copy + .sec-copy{margin-top:14px}
+
+/* ============================================================
+   THE ROOM (app)
+   ============================================================ */
+.room-wrap{position:relative}
+.app{position:relative;border:1px solid var(--line);border-radius:26px;overflow:hidden;
+  background:linear-gradient(180deg,#101314,#0a0b0c 60%);box-shadow:0 40px 120px -60px rgba(0,0,0,.9),inset 0 1px 0 rgba(237,233,223,.06)}
+.app-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;
+  border-bottom:1px solid var(--line);background:rgba(237,233,223,.02)}
+.app-bar-l,.app-bar-r{display:flex;align-items:center;gap:12px;min-width:0}
+.app-dots{display:flex;gap:6px;flex:none}
+.app-dots i{width:8px;height:8px;border-radius:50%;background:rgba(237,233,223,.16)}
+.app-dots i:nth-child(1){background:rgba(255,77,34,.6)}
+.app-dots i:nth-child(2){background:rgba(200,255,61,.5)}
+.app-addr{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--bone-dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none}
+.app-addr b{color:var(--bone);font-weight:400}
+.app-state{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--bone-dim);white-space:nowrap}
+.app-state i{width:6px;height:6px;border-radius:50%;background:var(--bone-ghost);transition:background .3s,box-shadow .3s}
+.app[data-state="live"] .app-state i{background:var(--acid);box-shadow:0 0 9px var(--acid);animation:pulse 2s infinite}
+.app[data-state="handshake"] .app-state i{background:var(--acid);animation:pulse .9s infinite}
+.app[data-state="error"] .app-state i{background:var(--rust)}
+.app-timer{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--bone-dim);font-variant-numeric:tabular-nums}
+.app[data-state="live"] .app-timer{color:var(--acid)}
+
+.stage{position:relative;aspect-ratio:16/9;background:
+  radial-gradient(90% 90% at 50% 0%,rgba(200,255,61,.045),transparent 62%),
+  repeating-linear-gradient(0deg,rgba(237,233,223,.028) 0 1px,transparent 1px 38px),
+  repeating-linear-gradient(90deg,rgba(237,233,223,.028) 0 1px,transparent 1px 38px),
+  #0a0b0c;
+  overflow:hidden;isolation:isolate}
+@media (max-width:700px){.stage{aspect-ratio:4/5}}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#07080a}
+#remoteVideo{opacity:0;transition:opacity .7s var(--ease-out);z-index:1}
+.app[data-state="live"] #remoteVideo,#remoteVideo.has-stream{opacity:1}
+
+/* lobby */
+.lobby{position:absolute;inset:0;z-index:3;display:grid;grid-template-columns:1fr;align-content:center;
+  padding:clamp(18px,3.4vw,44px);gap:clamp(16px,2.6vw,30px);transition:opacity .5s,transform .6s var(--ease-out)}
+.app[data-state="invite"] .lobby,.app[data-state="airgap"] .lobby,.app[data-state="handshake"] .lobby,.app[data-state="live"] .lobby{opacity:0;pointer-events:none;transform:scale(.985)}
+@media (min-width:720px){.lobby{grid-template-columns:1fr 1px 1fr;align-items:center}}
+.lobby-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.lobby-sep{background:var(--line);height:100%;width:1px;display:none}
+@media (min-width:720px){.lobby-sep{display:block}}
+.lobby-k{display:flex;align-items:center;gap:9px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--bone-ghost)}
+.lobby-k b{color:var(--acid);font-weight:400}
+.lobby-title{font-family:var(--font-display);font-size:clamp(24px,3vw,36px);line-height:1;letter-spacing:-.02em;margin:0}
+.lobby-copy{font-size:13px;line-height:1.6;color:var(--bone-dim);margin:0;max-width:34ch}
+.code-in{display:flex;align-items:center;gap:6px;height:62px;padding:0 14px;border:1px solid var(--line);border-radius:14px;
+  background:rgba(8,9,10,.6);transition:border-color .3s,background .3s}
+.code-in:focus-within{border-color:rgba(200,255,61,.5);background:rgba(200,255,61,.04)}
+.code-in input{flex:1;min-width:0;border:0;background:none;outline:none;font-family:var(--font-mono);font-size:20px;
+  letter-spacing:.34em;text-transform:uppercase;color:var(--bone);padding:0}
+.code-in input::placeholder{color:rgba(237,233,223,.2);letter-spacing:.34em}
+.code-in .hint{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;color:var(--bone-ghost);text-transform:uppercase;flex:none}
+.mode-switch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mode-pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:100px;border:1px solid var(--line);
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost);
+  transition:color .3s,border-color .3s,background .3s}
+.mode-pill i{width:5px;height:5px;border-radius:50%;background:currentColor}
+.mode-pill[aria-pressed="true"]{color:var(--acid);border-color:rgba(200,255,61,.42);background:rgba(200,255,61,.07)}
+.mode-pill[disabled]{opacity:.4;cursor:not-allowed}
+
+/* invite / handshake overlay */
+.overlay{position:absolute;inset:0;z-index:4;display:none;flex-direction:column;justify-content:center;gap:18px;overflow-y:auto;overscroll-behavior:contain;
+  padding:clamp(20px,3.6vw,48px);background:linear-gradient(180deg,rgba(8,9,10,.86),rgba(8,9,10,.96));backdrop-filter:blur(6px)}
+.app[data-state="invite"] .overlay[data-for="invite"],
+.app[data-state="airgap"] .overlay[data-for="airgap"],
+.app[data-state="ended"] .overlay[data-for="ended"]{display:flex}
+.ov-title{font-family:var(--font-display);font-size:clamp(26px,3.4vw,42px);line-height:1;margin:0;letter-spacing:-.02em}
+.ov-title em{font-style:italic;color:var(--acid)}
+.ov-sub{font-size:13.5px;line-height:1.6;color:var(--bone-dim);margin:0;max-width:52ch}
+.room-code-big{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.room-code-big .code{font-family:var(--font-mono);font-size:clamp(30px,5.4vw,56px);letter-spacing:.24em;color:var(--bone);line-height:1}
+.room-code-big .code .acid{color:var(--acid)}
+.copy-field{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 10px 10px 14px;
+  background:rgba(237,233,223,.03);max-width:100%}
+.copy-field input{flex:1;min-width:0;background:none;border:0;outline:none;font-family:var(--font-mono);font-size:11.5px;color:var(--bone-dim);letter-spacing:.02em}
+.ov-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.blob-box{position:relative}
+.blob-box textarea{width:100%;height:88px;resize:none;border:1px solid var(--line);border-radius:12px;background:rgba(237,233,223,.03);
+  color:var(--bone-dim);font-family:var(--font-mono);font-size:10.5px;line-height:1.5;padding:12px;outline:none;word-break:break-all}
+.blob-box textarea:focus{border-color:rgba(200,255,61,.45)}
+.blob-label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost)}
+
+/* local pip */
+.pip{position:absolute;right:14px;bottom:14px;z-index:5;width:clamp(96px,15%,190px);aspect-ratio:4/3;border-radius:12px;overflow:hidden;
+  border:1px solid rgba(237,233,223,.24);background:#0c0e0f;box-shadow:0 16px 40px -18px #000;
+  opacity:0;transform:translateY(10px) scale(.94);transition:opacity .5s var(--ease-out),transform .5s var(--ease-spring);
+  cursor:grab}
+.pip.show{opacity:1;transform:none}
+.pip video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.pip::after{content:"YOU";position:absolute;left:6px;bottom:5px;font-family:var(--font-mono);font-size:8px;
+  letter-spacing:.16em;color:rgba(237,233,223,.8);background:rgba(0,0,0,.45);padding:2px 5px;border-radius:3px}
+.pip.mirror-off video{transform:none}
+
+/* stage overlays */
+.stage-badge{position:absolute;left:14px;top:14px;z-index:6;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  opacity:0;transition:opacity .4s}
+.app[data-state="live"] .stage-badge{opacity:1}
+.pill-live{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:100px;
+  background:rgba(8,9,10,.62);border:1px solid rgba(237,233,223,.16);backdrop-filter:blur(8px);
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone)}
+.pill-live i{width:5px;height:5px;border-radius:50%;background:var(--acid);animation:pulse 1.8s infinite}
+.waiting{position:absolute;inset:0;z-index:2;display:grid;place-items:center;gap:16px;text-align:center;padding:24px;
+  opacity:0;pointer-events:none;transition:opacity .5s}
+.app[data-state="handshake"] .waiting,.app[data-state="invite"] .waiting{opacity:1}
+.spinner{width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(237,233,223,.18);border-top-color:var(--acid);
+  animation:spin .9s linear infinite;margin-inline:auto}
+.waiting p{margin:0;font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim)}
+
+/* control deck */
+.deck{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  padding:14px 16px;border-top:1px solid var(--line);background:rgba(8,9,10,.7)}
+.deck-l,.deck-r{display:flex;align-items:center;gap:10px;min-width:0}
+.deck-status{display:flex;flex-direction:column;gap:3px;min-width:0}
+.deck-status b{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:400;color:var(--bone)}
+.deck-status span{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--bone-ghost);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats-readout{display:none;gap:16px;align-items:center;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--bone-ghost)}
+.app[data-state="live"] .stats-readout{display:flex}
+.stats-readout b{display:block;color:var(--bone);font-weight:400;font-size:11px;letter-spacing:.04em;margin-top:3px}
+.fingerprints{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px 14px;border-top:1px solid var(--line-soft);
+  background:rgba(8,9,10,.5)}
+.fingerprints .fp{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--bone-ghost)}
+.fingerprints .fp b{color:var(--bone-dim);font-weight:400;letter-spacing:.06em;text-transform:none}
+.fp-match{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid var(--line);color:var(--bone-ghost)}
+.fp-match[data-ok="1"]{color:var(--acid);border-color:rgba(200,255,61,.4)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);z-index:9400;opacity:0;pointer-events:none;
+  background:var(--bone);color:var(--ink);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  padding:11px 18px;border-radius:100px;transition:opacity .3s,transform .4s var(--ease-spring);box-shadow:0 20px 50px -20px #000}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ============================================================
+   protocol steps
+   ============================================================ */
+.steps{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--line)}
+@media (min-width:900px){.steps{grid-template-columns:repeat(3,1fr)}}
+.step{position:relative;padding:clamp(24px,3vw,40px) clamp(18px,2.4vw,32px);border-bottom:1px solid var(--line);overflow:hidden;
+  transition:background .45s var(--ease-out)}
+@media (min-width:900px){.step{border-bottom:0;border-right:1px solid var(--line)}.step:last-child{border-right:0}}
+.step::before{content:"";position:absolute;inset:0;background:linear-gradient(200deg,rgba(200,255,61,.09),transparent 60%);
+  opacity:0;transition:opacity .5s;pointer-events:none}
+.step:hover::before{opacity:1}
+.step-n{font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;color:var(--bone-ghost);display:flex;align-items:center;gap:10px}
+.step-n b{color:var(--acid);font-weight:400}
+.step-n .bar{flex:1;height:1px;background:var(--line-soft)}
+.step-ico{margin:clamp(20px,3vw,32px) 0 18px;color:var(--bone);transition:color .4s,transform .6s var(--ease-spring)}
+.step:hover .step-ico{color:var(--acid);transform:translateY(-3px)}
+.step-ico svg{width:26px;height:26px;stroke-width:1.3}
+.step h3{margin:0 0 10px;font-family:var(--font-display);font-size:clamp(22px,2.3vw,30px);font-weight:400;letter-spacing:-.02em;line-height:1.05}
+.step p{margin:0;font-size:13px;line-height:1.65;color:var(--bone-dim)}
+.step code{font-family:var(--font-mono);font-size:11px;color:var(--acid);background:var(--acid-dim);padding:1px 5px;border-radius:4px}
+.step-foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-ghost)}
+
+/* ============================================================
+   relay table
+   ============================================================ */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.relay{width:100%;border-collapse:collapse;min-width:580px}
+table.relay th,table.relay td{text-align:left;padding:16px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.relay th{font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-ghost);
+  border-bottom-color:var(--line);font-weight:400;padding-top:0}
+table.relay td:first-child{font-size:14px;color:var(--bone);width:32%}
+table.relay td{font-size:13px;line-height:1.55;color:var(--bone-dim)}
+table.relay tr:hover td{background:rgba(237,233,223,.02)}
+.tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;border:1px solid var(--line)}
+.tag.no{color:var(--acid);border-color:rgba(200,255,61,.34);background:rgba(200,255,61,.06)}
+.tag.yes{color:var(--bone-dim)}
+.tag.never{color:var(--rust);border-color:rgba(255,77,34,.3);background:rgba(255,77,34,.06)}
+
+/* can't see grid */
+.cants{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-top:clamp(28px,4vw,48px)}
+@media (min-width:760px){.cants{grid-template-columns:repeat(2,1fr)}}
+.cant{padding:24px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:flex-start}
+@media (min-width:760px){.cant{border-right:1px solid var(--line)}.cant:nth-child(2n){border-right:0}.cant:nth-last-child(-n+2){border-bottom:0}}
+.cant:last-child{border-bottom:0}
+.cant svg{width:17px;height:17px;color:var(--acid);flex:none;margin-top:3px}
+.cant h4{margin:0 0 5px;font-size:14.5px;font-weight:500;letter-spacing:-.01em}
+.cant p{margin:0;font-size:12.5px;line-height:1.6;color:var(--bone-dim)}
+
+/* ============================================================
+   faq
+   ============================================================ */
+.faq{border-top:1px solid var(--line)}
+.qa{border-bottom:1px solid var(--line)}
+.qa summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:20px;padding:26px 0;
+  transition:padding .4s var(--ease-out)}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary:hover{padding-left:10px}
+.q-idx{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--bone-ghost);flex:none;width:28px}
+.q-txt{flex:1;font-family:var(--font-display);font-size:clamp(19px,2.1vw,26px);font-weight:400;letter-spacing:-.015em;line-height:1.2}
+.q-plus{position:relative;width:20px;height:20px;flex:none}
+.q-plus::before,.q-plus::after{content:"";position:absolute;left:50%;top:50%;background:var(--bone-dim);transition:transform .45s var(--ease-spring),background .3s}
+.q-plus::before{width:13px;height:1px;transform:translate(-50%,-50%)}
+.q-plus::after{width:1px;height:13px;transform:translate(-50%,-50%)}
+.qa[open] .q-plus::after{transform:translate(-50%,-50%) rotate(90deg);opacity:0}
+.qa[open] .q-plus::before{background:var(--acid)}
+.qa-body{padding:0 0 28px 48px;max-width:70ch;font-size:13.5px;line-height:1.72;color:var(--bone-dim);animation:qaIn .5s var(--ease-out)}
+.qa-body a{color:var(--bone);border-bottom:1px solid rgba(200,255,61,.5)}
+@keyframes qaIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   footer
+   ============================================================ */
+.foot{position:relative;padding-top:clamp(50px,7vw,90px);border-top:1px solid var(--line);overflow:hidden}
+.foot-top{display:grid;grid-template-columns:1fr;gap:36px}
+@media (min-width:860px){.foot-top{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)}}
+.foot-brand{font-family:var(--font-display);font-size:clamp(30px,3.4vw,44px);line-height:.95;letter-spacing:-.03em;margin:0 0 16px}
+.foot-brand em{font-style:italic;color:var(--acid)}
+.foot p{margin:0;font-size:13px;line-height:1.65;color:var(--bone-dim);max-width:38ch}
+.foot-col h5{margin:0 0 14px;font-family:var(--font-mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-ghost);font-weight:400}
+.foot-col ul{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.foot-col a{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--bone-dim);display:inline-flex;align-items:center;gap:7px;
+  transition:color .3s,transform .3s var(--ease-out)}
+.foot-col a:hover{color:var(--acid);transform:translateX(3px)}
+.foot-col a svg{width:11px;height:11px;opacity:.6}
+.wordmark{position:relative;margin-top:clamp(34px,5vw,64px) ;line-height:.72;font-family:var(--font-display);
+  font-size:clamp(66px,17.4vw,290px);letter-spacing:-.05em;color:transparent;-webkit-text-stroke:1px rgba(237,233,223,.14);
+  user-select:none;pointer-events:none;white-space:nowrap}
+.wordmark em{font-style:italic;-webkit-text-stroke:1px rgba(200,255,61,.26)}
+.foot-legal{display:flex;flex-wrap:wrap;gap:14px 26px;justify-content:space-between;align-items:center;
+  padding:20px 0 26px;border-top:1px solid var(--line);margin-top:clamp(20px,3vw,34px);
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-ghost)}
+.foot-legal .l{display:flex;gap:18px;flex-wrap:wrap}
+
+/* ============================================================
+   modal
+   ============================================================ */
+.modal{position:fixed;inset:0;z-index:9200;display:grid;place-items:center;padding:20px;
+  background:rgba(4,5,5,.72);backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .35s}
+.modal.open{opacity:1;pointer-events:auto}
+.modal-card{width:min(560px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;
+  background:linear-gradient(180deg,#111415,#0a0b0c);padding:clamp(20px,3vw,30px);transform:translateY(14px) scale(.985);
+  transition:transform .5s var(--ease-spring);box-shadow:0 50px 120px -50px #000}
+.modal.open .modal-card{transform:none}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.modal-head h3{margin:0;font-family:var(--font-display);font-size:26px;font-weight:400;letter-spacing:-.02em}
+.modal-head p{margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--bone-dim)}
+.field{display:grid;gap:7px;margin-bottom:16px}
+.field label{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-ghost)}
+.field input{height:44px;border:1px solid var(--line);border-radius:10px;background:rgba(237,233,223,.03);padding:0 12px;
+  font-family:var(--font-mono);font-size:12px;letter-spacing:.02em;outline:none;transition:border-color .3s}
+.field input:focus{border-color:rgba(200,255,61,.45)}
+.field .sub{font-size:11px;line-height:1.55;color:var(--bone-ghost)}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
+.kbd{font-family:var(--font-mono);font-size:10px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--bone-dim)}
+
+/* ============================================================
+   scroll reveal (only when JS is in control)
+   ============================================================ */
+.js .reveal{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease-out),transform 1s var(--ease-spring)}
+.js .reveal.in{opacity:1;transform:none}
+.js .mask-lines .ln > span{transform:translateY(105%);transition:transform 1.1s var(--ease-out)}
+.js .mask-lines.in .ln > span{transform:none}
+.js .mask-lines .ln:nth-child(2) > span{transition-delay:.09s}
+.js .mask-lines .ln:nth-child(3) > span{transition-delay:.18s}
+.js .mask-lines .ln:nth-child(4) > span{transition-delay:.27s}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .js .reveal,.js .mask-lines .ln > span{opacity:1;transform:none}
+  .grain{display:none}
+  #boot{display:none}
+}
+@media (max-width:640px){
+  .hero{padding-top:96px}
+  .hero-ghost{font-size:34vw;top:70px}
+  .badge-spin{display:none}
+  .deck{padding:12px;gap:10px}
+  .deck-r .icon-btn{width:44px;height:44px}
+  .fingerprints{padding:10px 12px 12px}
+  .app-bar{padding:10px 12px}
+  .app-addr{font-size:9px}
+  .foot-legal{font-size:9px}
+}
+
+
+@media (max-width:720px){
+  .stats-readout{display:none !important}
+  .app[data-state="airgap"] .stage,.app[data-state="invite"] .stage{aspect-ratio:auto;min-height:min(78vh,560px)}
+  .overlay{padding:18px 16px}
+  .room-code-big .code{font-size:34px}
+}
+.cursor,.cursor-dot{opacity:0}
+.cursor.on,.cursor-dot.on{opacity:1}
+
+/* ============================================================
+   supplemental blocks
+   ============================================================ */
+.mode-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:10px 16px;border-top:1px solid var(--line);background:rgba(237,233,223,.02)}
+.js .mask-lines .ln > .split-chars{transform:none;transition:none}
+.mask-lines .split-chars span{display:inline-block;transform:translateY(112%);
+  transition:transform 1s var(--ease-out)}
+.js .mask-lines.in .split-chars span{transform:none}
+.mask-lines .split-chars{white-space:pre}
+.deploy-row{display:grid;grid-template-columns:1fr;gap:clamp(18px,3vw,28px);align-items:center;
+  margin-top:clamp(32px,5vw,58px);padding:clamp(20px,3vw,32px);border:1px solid var(--line);border-radius:20px;
+  background:linear-gradient(160deg,rgba(200,255,61,.045),transparent 55%)}
+@media (min-width:880px){.deploy-row{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}}
+.snippet{position:relative;border:1px solid var(--line);border-radius:14px;background:rgba(8,9,10,.6);overflow:hidden}
+.snippet-head{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line-soft);
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-ghost)}
+.snippet pre{margin:0;padding:16px 16px 22px;overflow-x:auto;font-family:var(--font-mono);font-size:11.5px;
+  line-height:1.8;color:var(--bone-dim)}
+.snippet pre code{font:inherit;white-space:pre}
+.snippet-copy{position:absolute;right:10px;bottom:10px;height:30px;font-size:9px;padding:0 11px}
+.fineprint{margin:clamp(18px,3vw,28px) 0 0;font-size:11px;line-height:1.75;color:var(--bone-ghost);max-width:74ch}
+.fp-block{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;
+  margin-bottom:10px;background:rgba(237,233,223,.025)}
+.fp-block span{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-ghost)}
+.fp-block code{font-family:var(--font-mono);font-size:11px;line-height:1.75;color:var(--bone);word-break:break-all}
+.qa-body code{font-family:var(--font-mono);font-size:11px;color:var(--acid);background:var(--acid-dim);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body id="top">
+
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="cursor" id="cursor" aria-hidden="true"><span id="cursorLabel">copy</span></div>
+<div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+
+<!-- preloader -->
+<div id="boot" role="status" aria-live="polite">
+  <div class="boot-inner">
+    <div class="boot-row">
+      <div class="boot-mark">null<em>node</em></div>
+      <div class="boot-count"><span id="bootNum">000</span>%</div>
+    </div>
+    <div class="boot-line"><i id="bootBar"></i></div>
+    <div class="boot-log" id="bootLog">
+      <p data-at="0">initialising <b>local session</b></p>
+      <p data-at="1">no accounts · no storage · no trace</p>
+      <p data-at="2">channel: <b>peer-to-peer</b></p>
+      <p data-at="3">ready <b>— hand nothing over</b></p>
+    </div>
+  </div>
+</div>
+
+<!-- nav -->
+<header class="nav" id="nav">
+  <div class="nav-in">
+    <a href="#top" class="brand" aria-label="NullNode home">
+      <i class="node" aria-hidden="true"></i>
+      <b>NULL</b><span class="slash">/</span><b>NODE</b>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="nav-link" href="#room"><i>Room</i><i aria-hidden="true">Room</i></a>
+      <a class="nav-link" href="#protocol"><i>Protocol</i><i aria-hidden="true">Protocol</i></a>
+      <a class="nav-link" href="#relay"><i>Relay</i><i aria-hidden="true">Relay</i></a>
+      <a class="nav-link" href="#faq"><i>Questions</i><i aria-hidden="true">Questions</i></a>
+    </nav>
+    <div class="nav-right">
+      <span class="chip" id="relayChip" data-state="off" title="Signalling relay status">
+        <i aria-hidden="true"></i><span id="relayChipText">relay unset</span>
+      </span>
+      <button class="btn btn-primary btn-sm" data-start>
+        <i data-lucide="arrow-up-right" aria-hidden="true"></i>Start a call
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- hero -->
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-ghost" aria-hidden="true">NULL</div>
+  <div class="shell">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-eyebrow">
+          <span class="idx">001</span>
+          <span class="bar" aria-hidden="true"></span>
+          <span class="mono dim">Anonymous 1:1 video</span>
+        </div>
+
+        <h1 class="hero-title mask-lines" id="heroTitle">
+          <span class="ln"><span class="split-chars">A room</span></span>
+          <span class="ln indent"><span>that <em class="it accent">never</em></span></span>
+          <span class="ln"><span>existed<span class="accent">.</span></span></span>
+        </h1>
+
+        <p class="hero-sub">
+          Two faces and a direct line. NullNode opens a single encrypted
+          peer-to-peer channel, then closes it forever when you hang up —
+          <strong>no account, no cloud copy, no recording.</strong>
+        </p>
+
+        <div class="hero-actions">
+          <button class="btn btn-primary magnetic" data-start>
+            <i data-lucide="video" aria-hidden="true"></i>Start a call
+          </button>
+          <a class="btn btn-ghost magnetic" href="#protocol">
+            Read the protocol
+            <i data-lucide="arrow-down" aria-hidden="true"></i>
+          </a>
+        </div>
+
+        <p class="hero-note">
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          No sign-up · no download · runs in the browser
+        </p>
+      </div>
+
+      <aside class="spec reveal" aria-label="Session telemetry">
+        <div class="badge-spin" aria-hidden="true">
+            <svg viewBox="0 0 100 100">
+              <defs><path id="circlePath" d="M50,50 m-38,0 a38,38 0 1,1 76,0 a38,38 0 1,1 -76,0"></path></defs>
+              <text><textPath href="#circlePath" startOffset="0">NULLNODE · PEER TO PEER · NO TRACE · </textPath></text>
+            </svg>
+          </div>
+          <div class="spec-card">
+          <div class="spec-head">
+            <span class="mono dim">signal</span>
+            <span class="dotset" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
+          <canvas id="signal" width="600" height="132" aria-label="Live connection diagram"></canvas>
+          <div class="spec-foot">
+            <span>peers <b id="specPeers">0</b>/2</span>
+            <span>state <b id="specState">idle</b></span>
+          </div>
+        </div>
+        <div class="spec-card" style="padding:14px 18px">
+          <div class="spec-foot" style="margin:0">
+            <span>transport</span>
+            <span><b>DTLS–SRTP</b> · mandatory</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="stats reveal">
+      <div class="stat"><b>00</b><span>accounts<br>nothing to sign up for</span></div>
+      <div class="stat"><b>≈2s</b><span>to a room<br>from a cold open</span></div>
+      <div class="stat"><b>0 B</b><span>stored<br>media never leaves peers</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- marquee -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>No accounts <i></i> No logs <i></i> No recording <i></i> Peer-to-peer only <i></i> Room burns on hangup <i></i> End-to-end encrypted <i></i> Open source <i></i></span>
+    <span>No accounts <i></i> No logs <i></i> No recording <i></i> Peer-to-peer only <i></i> Room burns on hangup <i></i> End-to-end encrypted <i></i> Open source <i></i></span>
+  </div>
+</div>
+
+<!-- THE ROOM -->
+<section class="section" id="room" aria-labelledby="roomTitle">
+  <div class="shell">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-num"><b>002</b><span class="bar" aria-hidden="true"></span>the room</div>
+        <h2 class="sec-title" id="roomTitle">Open it,<br>then <em>burn it.</em></h2>
+      </div>
+      <div>
+        <p class="sec-copy">
+          There is no lobby, no host dashboard, no waiting room list. One person
+          creates a key, the other types it in, and the two browsers negotiate a
+          direct channel. The relay never touches your audio or video.
+        </p>
+        <p class="sec-copy">
+          Camera and microphone are requested only after you press a button —
+          never on page load.
+        </p>
+      </div>
+    </div>
+
+    <div class="app reveal" id="app" data-state="idle">
+      <div class="app-bar">
+        <div class="app-bar-l">
+          <div class="app-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="app-addr">nullnode://room/<b id="addrCode">------</b></div>
+        </div>
+        <div class="app-bar-r">
+          <div class="app-state"><i aria-hidden="true"></i><span id="stateText" aria-live="polite">idle</span></div>
+          <div class="app-timer" id="timer">00:00</div>
+          <button class="icon-btn" id="settingsBtn" style="width:36px;height:36px;border-radius:10px" aria-label="Relay settings">
+            <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <video id="remoteVideo" autoplay playsinline aria-label="Remote participant"></video>
+
+        <div class="waiting" aria-hidden="true">
+          <div>
+            <div class="spinner"></div>
+            <p id="waitingText">waiting for the other side</p>
+          </div>
+        </div>
+
+        <div class="stage-badge">
+          <span class="pill-live"><i aria-hidden="true"></i>live</span>
+          <span class="pill-live" id="encBadge">encrypted</span>
+        </div>
+
+        <div class="lobby" id="lobby">
+          <div class="lobby-col">
+            <div class="lobby-k"><b>A</b> host</div>
+            <h3 class="lobby-title">Create a room.</h3>
+            <p class="lobby-copy">A six-character key is generated locally. Send it to exactly one person.</p>
+            <button class="btn btn-primary" id="createBtn">
+              <i data-lucide="radio" aria-hidden="true"></i>Create a room
+            </button>
+          </div>
+          <div class="lobby-sep" aria-hidden="true"></div>
+          <div class="lobby-col">
+            <div class="lobby-k"><b>B</b> guest</div>
+            <h3 class="lobby-title">Join with a key.</h3>
+            <p class="lobby-copy">Six characters, no password. Ask the host to read it out loud.</p>
+            <form id="joinForm" autocomplete="off">
+              <div class="code-in">
+                <input id="codeInput" inputmode="text" maxlength="6" placeholder="------"
+                       aria-label="Room key" spellcheck="false" autocapitalize="characters">
+                <span class="hint">6 chr</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="joinBtn" type="submit" style="margin-top:10px;width:100%">
+                <i data-lucide="log-in" aria-hidden="true"></i>Join the room
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- invite -->
+        <div class="overlay" data-for="invite">
+          <div class="ov-title">Room is <em>open.</em></div>
+          <div class="room-code-big">
+            <span class="code" id="bigCode">------</span>
+          </div>
+          <p class="ov-sub" id="inviteSub">Send this link to the one person you want to talk to. It expires when either side hangs up.</p>
+          <div class="copy-field">
+            <input id="inviteLink" readonly aria-label="Invite link">
+            <button class="btn btn-ghost btn-sm" id="copyLinkBtn" data-cursor="copy">Copy</button>
+          </div>
+          <div class="ov-actions">
+            <button class="btn btn-ghost btn-sm" id="airgapFromInvite">
+              <i data-lucide="wifi-off" aria-hidden="true"></i>No relay? Handshake by hand
+            </button>
+            <button class="btn btn-ghost btn-sm" id="cancelRoom">
+              <i data-lucide="x" aria-hidden="true"></i>Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- airgap handshake -->
+        <div class="overlay" data-for="airgap">
+          <div class="ov-title">Hand it over <em>by hand.</em></div>
+          <p class="ov-sub" id="airgapLead">No relay, no server, no third party. Copy the offer below and send it to your peer over any channel you trust. Paste their answer back.</p>
+          <div class="blob-box">
+            <div class="blob-label"><span id="airgapOutLabel">01 — your offer</span><button class="mono acid" id="copyBlob" data-cursor="copy" type="button">Copy</button></div>
+            <textarea id="airgapOut" readonly spellcheck="false" aria-label="Your session descriptor"></textarea>
+          </div>
+          <div class="blob-box">
+            <div class="blob-label"><span>02 — their answer</span><button class="mono dim" id="pasteBlob" type="button">Paste</button></div>
+            <textarea id="airgapIn" spellcheck="false" placeholder="Paste the descriptor you received…" aria-label="Peer descriptor"></textarea>
+          </div>
+          <div class="ov-actions">
+            <button class="btn btn-primary btn-sm" id="airgapConnect">Connect</button>
+            <button class="btn btn-ghost btn-sm" id="airgapReset">Reset</button>
+            <button class="btn btn-ghost btn-sm" id="airgapClose">Close</button>
+          </div>
+        </div>
+
+        <!-- ended -->
+        <div class="overlay" data-for="ended">
+          <div class="ov-title">Room <em>burned.</em></div>
+          <p class="ov-sub" id="endedSub">The peer connection is closed, tracks are stopped and the room key was deleted from the relay. Nothing was written down.</p>
+          <div class="ov-actions">
+            <button class="btn btn-primary btn-sm" id="againBtn"><i data-lucide="rotate-ccw" aria-hidden="true"></i>New room</button>
+            <button class="btn btn-ghost btn-sm" id="dismissEnded">Stay here</button>
+          </div>
+        </div>
+
+        <div class="pip" id="pip">
+          <video id="localVideo" autoplay playsinline muted aria-label="Your camera"></video>
+        </div>
+      </div>
+
+      <div class="mode-bar">
+        <div class="mode-switch" role="group" aria-label="Signalling mode">
+          <button class="mode-pill" id="modeRelay" aria-pressed="false"><i aria-hidden="true"></i>Relay</button>
+          <button class="mode-pill" id="modeAirgap" aria-pressed="true"><i aria-hidden="true"></i>Airgap</button>
+        </div>
+        <span class="mono dim" id="modeHint" style="font-size:9px">airgap — handshake copied by hand, no server involved</span>
+      </div>
+
+      <div class="deck">
+        <div class="deck-l">
+          <button class="icon-btn" id="micBtn" aria-pressed="true" aria-label="Microphone">
+            <i data-lucide="mic" aria-hidden="true"></i><span class="tip" id="micTip">Mute</span>
+          </button>
+          <button class="icon-btn" id="camBtn" aria-pressed="true" aria-label="Camera">
+            <i data-lucide="video" aria-hidden="true"></i><span class="tip" id="camTip">Camera off</span>
+          </button>
+          <button class="icon-btn" id="shareBtn" aria-pressed="false" aria-label="Share screen">
+            <i data-lucide="screen-share" aria-hidden="true"></i><span class="tip">Share screen</span>
+          </button>
+          <div class="deck-status">
+            <b id="deckTitle">Idle</b>
+            <span id="deckSub">no session · permissions not requested</span>
+          </div>
+        </div>
+        <div class="deck-r">
+          <div class="stats-readout" aria-hidden="true">
+            <div>res<b id="stRes">—</b></div>
+            <div>fps<b id="stFps">—</b></div>
+            <div>rate<b id="stRate">—</b></div>
+            <div>rtt<b id="stRtt">—</b></div>
+          </div>
+          <button class="icon-btn danger" id="hangupBtn">
+            <i data-lucide="phone-off" aria-hidden="true"></i>End
+          </button>
+        </div>
+      </div>
+
+      <div class="fingerprints">
+        <span class="fp">local <b id="fpLocal">—</b></span>
+        <span class="fp">remote <b id="fpRemote">—</b></span>
+        <span class="fp-match" id="fpMatch" data-ok="0">unverified</span>
+        <button class="btn btn-ghost btn-sm" id="verifyBtn" style="height:28px;font-size:9px;padding:0 12px">Verify</button>
+        <span class="mono dim" style="margin-left:auto;font-size:9px">compare out loud</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROTOCOL -->
+<section class="section" id="protocol" aria-labelledby="protoTitle">
+  <div class="shell">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-num"><b>003</b><span class="bar" aria-hidden="true"></span>protocol</div>
+        <h2 class="sec-title" id="protoTitle">Three moves.<br><em>Nothing kept.</em></h2>
+      </div>
+      <div>
+        <p class="sec-copy">
+          NullNode speaks exactly one dialect: the browser's own WebRTC. There is
+          no media server to trust because there is no media server. The only
+          piece of infrastructure is a relay that forwards a handshake and then
+          forgets it.
+        </p>
+      </div>
+    </div>
+
+    <div class="steps reveal">
+      <article class="step">
+        <div class="step-n"><b>01</b><span class="bar" aria-hidden="true"></span>create</div>
+        <div class="step-ico"><i data-lucide="key-round" aria-hidden="true"></i></div>
+        <h3>A key, not an account.</h3>
+        <p>
+          Your browser generates a six-character room key — 32<sup>6</sup>
+          combinations. Nothing is registered anywhere. The key is only an address
+          the relay will answer for the next two connections.
+        </p>
+        <div class="step-foot"><span>relay sees</span><span class="acid">the key</span></div>
+      </article>
+
+      <article class="step">
+        <div class="step-n"><b>02</b><span class="bar" aria-hidden="true"></span>handshake</div>
+        <div class="step-ico"><i data-lucide="git-compare-arrows" aria-hidden="true"></i></div>
+        <h3>Two browsers find each other.</h3>
+        <p>
+          Session descriptions and ICE candidates travel as opaque text — a few
+          kilobytes, held in memory for seconds. Then the peers negotiate
+          <code>DTLS-SRTP</code> directly. The relay's job is over before you speak.
+        </p>
+        <div class="step-foot"><span>media path</span><span class="acid">peer → peer</span></div>
+      </article>
+
+      <article class="step">
+        <div class="step-n"><b>03</b><span class="bar" aria-hidden="true"></span>burn</div>
+        <div class="step-ico"><i data-lucide="flame" aria-hidden="true"></i></div>
+        <h3>The key stops existing.</h3>
+        <p>
+          Hanging up closes the peer connection, stops every track and deletes the
+          room key from relay memory. There is no archive to leak, subpoena or sell
+          — the conversation only ever existed on two devices.
+        </p>
+        <div class="step-foot"><span>retention</span><span class="acid">until hangup</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- RELAY / TRUST -->
+<section class="section" id="relay" aria-labelledby="relayTitle">
+  <div class="shell">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-num"><b>004</b><span class="bar" aria-hidden="true"></span>surface area</div>
+        <h2 class="sec-title" id="relayTitle">What the relay<br><em>can see.</em></h2>
+      </div>
+      <div>
+        <p class="sec-copy">
+          We would rather show you the exact surface than promise you magic. Any
+          relay has to route a handshake — here is everything that passes through
+          ours, in plain language, with no asterisks.
+        </p>
+        <p class="sec-copy dim" style="font-size:12.5px">
+          Airgap mode removes even this: two people exchange one text blob out of
+          band and the relay is never contacted.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap reveal">
+      <table class="relay">
+        <thead>
+          <tr><th scope="col">Data</th><th scope="col">Relay visibility</th><th scope="col">Lifetime</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Room key</td>
+            <td><span class="tag yes">visible</span> — it is the address we route</td>
+            <td>Deleted on hangup, or after the idle TTL</td>
+          </tr>
+          <tr>
+            <td>IP addresses</td>
+            <td><span class="tag yes">visible</span> — transport level; unavoidable for any internet call</td>
+            <td>Discarded with the room, never written to disk</td>
+          </tr>
+          <tr>
+            <td>SDP + ICE candidates</td>
+            <td><span class="tag yes">visible</span> — relayed as opaque text, never parsed or logged</td>
+            <td>Dropped the instant they are delivered</td>
+          </tr>
+          <tr>
+            <td>Audio & video</td>
+            <td><span class="tag no">never</span> — peer-to-peer DTLS-SRTP</td>
+            <td>Does not exist on any server</td>
+          </tr>
+          <tr>
+            <td>Name, email, account</td>
+            <td><span class="tag no">not collected</span> — there is nowhere to put it</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Call history, duration, contacts</td>
+            <td><span class="tag never">not stored</span> — the timer runs in your tab only</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cants reveal">
+      <div class="cant">
+        <i data-lucide="video-off" aria-hidden="true"></i>
+        <div>
+          <h4>Record a call</h4>
+          <p>There is nothing to capture centrally. Media flows between two browsers and dies with the tab.</p>
+        </div>
+      </div>
+      <div class="cant">
+        <i data-lucide="undo-2" aria-hidden="true"></i>
+        <div>
+          <h4>Recover a room</h4>
+          <p>Keys live in memory. When the last peer disconnects, the address is gone for good.</p>
+        </div>
+      </div>
+      <div class="cant">
+        <i data-lucide="user-x" aria-hidden="true"></i>
+        <div>
+          <h4>Build a profile</h4>
+          <p>No account, no identity cookie, no history of who you called or when.</p>
+        </div>
+      </div>
+      <div class="cant">
+        <i data-lucide="ban" aria-hidden="true"></i>
+        <div>
+          <h4>Sell your attention</h4>
+          <p>No ads, no analytics, no tracking pixels. One page, one job, two people.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="deploy-row reveal">
+      <div>
+        <div class="mono dim" style="margin-bottom:10px">Self-host the relay</div>
+        <p class="sec-copy" style="font-size:13px;max-width:44ch">
+          One Cloudflare Worker, one Durable Object, no database. Deploy it under
+          your own account in about a minute, then paste the URL into the room
+          settings.
+        </p>
+      </div>
+      <div class="snippet">
+        <div class="snippet-head"><span>terminal</span><span class="dim">~ 60s</span></div>
+        <pre id="deployCmds"><code>git clone https://github.com/imfufuu/nullnode
+cd nullnode
+./scripts/deploy-worker.sh</code></pre>
+        <button class="btn btn-ghost btn-sm snippet-copy" id="copyCmds" data-cursor="copy">
+          <i data-lucide="copy" aria-hidden="true"></i>Copy
+        </button>
+      </div>
+    </div>
+
+    <p class="fineprint reveal">
+      Third-party requests on this page: Google Fonts (typefaces) and jsDelivr
+      (GSAP, Lenis, Lucide, Tailwind). They never see your media. Self-host the
+      assets to remove them entirely.
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq" aria-labelledby="faqTitle">
+  <div class="shell">
+    <div class="sec-head reveal">
+      <div>
+        <div class="sec-num"><b>005</b><span class="bar" aria-hidden="true"></span>questions</div>
+        <h2 class="sec-title" id="faqTitle">Fair<br><em>questions.</em></h2>
+      </div>
+      <div>
+        <p class="sec-copy">
+          The short version: it is as private as a phone call between two people
+          and no more. Here is what that means in practice.
+        </p>
+      </div>
+    </div>
+
+    <div class="faq reveal">
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">01</span><span class="q-txt">Is the call actually encrypted?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          Yes, and it is not optional. WebRTC mandates DTLS-SRTP, so a browser will
+          refuse to send media unencrypted. NullNode also surfaces both certificate
+          fingerprints in the room footer: read them out loud with the other person
+          to rule out a man in the middle, exactly like verifying a key.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">02</span><span class="q-txt">Do I need to install anything?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          No. A modern browser with camera and microphone permission is the entire
+          requirement — Chrome, Edge, Firefox or Safari, desktop or mobile. Cameras
+          are requested only when you press create or join, never on page load.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">03</span><span class="q-txt">Will it work behind my company network or CGNAT?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          Usually, but not always. WebRTC needs a viable network path: public STUN
+          gets most people through. If both sides sit behind symmetric NAT or a
+          restrictive firewall, you need your own TURN server. NullNode ships with
+          STUN only, by design — a public TURN would become a media relay and break
+          the privacy claim. The airgap handshake often helps on locked-down
+          networks, but it cannot create a path that does not exist.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">04</span><span class="q-txt">What happens if the relay is offline?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          Switch to airgap mode. Two people copy one long session descriptor to each
+          other through any channel they already trust — a message, an email, a
+          carrier pigeon — paste it back, and the peer connection forms with no
+          signalling server at all. Slower, uglier, completely serverless.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">05</span><span class="q-txt">Who can join my room?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          Anyone holding the six-character key while the room is open. That is the
+          whole point and also the whole risk: send the key over a channel you trust
+          and hang up when you are done. Rooms hold two peers, reject a third, and
+          expire on their own.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">06</span><span class="q-txt">Is it open source? Can I self-host it?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          Both. The whole client is one <code class="mono">index.html</code> served by
+          GitHub Pages; the signalling relay is one Cloudflare Worker with a single
+          Durable Object. Fork it, change the type, deploy under your own domain. MIT
+          licensed, no build step, no dependencies at runtime except the CDN assets
+          listed above.
+        </div>
+      </details>
+      <details class="qa" name="faq">
+        <summary><span class="q-idx">07</span><span class="q-txt">Why call it NullNode?</span><span class="q-plus" aria-hidden="true"></span></summary>
+        <div class="qa-body">
+          A node in a network is a place where data stops and is kept. NullNode is
+          the opposite: a node that holds nothing, remembers nothing, and disappears
+          when the conversation ends. The name is the design brief.
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- FOOTER -->
+<footer class="foot">
+  <div class="shell">
+    <div class="foot-top">
+      <div>
+        <h2 class="foot-brand">null<em>node</em></h2>
+        <p>
+          A room that never existed. Built for conversations that should not become
+          records — a source file, a Worker, and nothing else.
+        </p>
+        <button class="btn btn-primary btn-sm magnetic" data-start style="margin-top:22px">
+          <i data-lucide="video" aria-hidden="true"></i>Start a call
+        </button>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="#room">The room</a></li>
+          <li><a href="#protocol">Protocol</a></li>
+          <li><a href="#relay">What the relay sees</a></li>
+          <li><a href="#faq">Questions</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h5>Deploy</h5>
+        <ul>
+          <li><a href="#" id="openDeploy">Relay in 60 seconds</a></li>
+          <li><a href="#" id="openSettingsFoot">Configure relay</a></li>
+          <li><a href="https://github.com/imfufuu/nullnode" target="_blank" rel="noopener noreferrer">Source <i data-lucide="external-link" aria-hidden="true"></i></a></li>
+          <li><a href="https://github.com/imfufuu/nullnode/blob/main/docs/CREDENTIALS.md" target="_blank" rel="noopener noreferrer">Credentials <i data-lucide="external-link" aria-hidden="true"></i></a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="wordmark" aria-hidden="true">NULL<em>NODE</em></div>
+
+    <div class="foot-legal">
+      <div class="l">
+        <span>© 2026 NullNode</span>
+        <span>MIT licence</span>
+        <span>no cookies · no analytics</span>
+      </div>
+      <div class="l">
+        <span>built for two</span>
+        <span id="relayFoot">relay: unset</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="settingsTitle">Relay settings</h3>
+        <p>Point NullNode at your own Cloudflare Worker. Stored in this browser only.</p>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="Close" style="width:36px;height:36px">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="field">
+      <label for="relayInput">Worker origin</label>
+      <input id="relayInput" type="url" placeholder="https://nullnode-relay.your-name.workers.dev" spellcheck="false">
+      <span class="sub" id="relayTestOut">Not tested. The relay only sees room keys and handshake text.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="testRelay">Test connection</button>
+      <button class="btn btn-ghost btn-sm" id="clearRelay">Clear</button>
+      <button class="btn btn-primary btn-sm" id="saveRelay">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- VERIFY MODAL -->
+<div class="modal" id="verifyModal" role="dialog" aria-modal="true" aria-labelledby="verifyTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="verifyTitle">Verify the line</h3>
+        <p>Read the first two blocks of each fingerprint out loud. If they match, nobody sits between you.</p>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="Close" style="width:36px;height:36px">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="fp-block">
+      <span>your certificate · SHA-256</span>
+      <code id="fpLocalFull">—</code>
+    </div>
+    <div class="fp-block">
+      <span>their certificate · SHA-256</span>
+      <code id="fpRemoteFull">—</code>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>Close</button>
+      <button class="btn btn-primary btn-sm" id="markVerified">It matches</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPLOY MODAL -->
+<div class="modal" id="deployModal" role="dialog" aria-modal="true" aria-labelledby="deployTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="deployTitle">Your own relay</h3>
+        <p>A Cloudflare Worker plus one Durable Object. Free tier is plenty for one-to-one calls.</p>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="Close" style="width:36px;height:36px">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="blob-box" style="margin-bottom:14px">
+      <div class="blob-label"><span>01 — clone & deploy</span><button class="mono acid" id="copyDeploy" type="button">Copy</button></div>
+      <textarea id="deployBlob" readonly spellcheck="false" style="height:132px">export CLOUDFLARE_API_TOKEN=...
+export CLOUDFLARE_ACCOUNT_ID=...
+git clone https://github.com/imfufuu/nullnode
+cd nullnode
+./scripts/deploy-worker.sh</textarea>
+    </div>
+    <p class="sec-copy" style="font-size:12.5px">
+      The script prints your Worker URL. Paste it into relay settings and the room
+      switches back to relay mode — no rebuild required.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>Close</button>
+      <button class="btn btn-primary btn-sm" id="deployToSettings">Paste URL</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.73.0/dist/umd/lucide.min.js"></script>
+<script>
+/* ============================================================
+   nullnode · page chrome
+   ============================================================ */
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  /* ---------- icons (lucide + tiny fallback set) ---------- */
+  var FALLBACK = {
+    'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    'arrow-down': '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    'shield-check': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    'undo-2': '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+    'user-x': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/>',
+    'ban': '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+    'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    'radio': '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/>',
+    'log-in': '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>',
+    'key-round': '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+    'git-compare-arrows': '<circle cx="5" cy="6" r="3"/><path d="M12 6h5a2 2 0 0 1 2 2v7"/><path d="m15 9-3-3 3-3"/><circle cx="19" cy="18" r="3"/><path d="M12 18H7a2 2 0 0 1-2-2V9"/><path d="m9 15 3 3-3 3"/>',
+    'flame': '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    'rotate-ccw': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+    'wifi-off': '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+    'mic': '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/>',
+    'mic-off': '<line x1="2" y1="2" x2="22" y2="22"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M12 19v3"/>',
+    'video': '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',
+    'video-off': '<path d="M10.66 6H14a2 2 0 0 1 2 2v2.5l5.25-3.06A.5.5 0 0 1 22 7.87v8.2"/><path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"/><line x1="2" y1="2" x2="22" y2="22"/>',
+    'phone-off': '<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67"/><path d="M5 11.09a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" y1="2" x2="2" y2="22"/>',
+    'screen-share': '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="m17 8 5-5"/><path d="M17 3h5v5"/>',
+    'link': '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    'sliders-horizontal': '<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+    'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'check': '<path d="M20 6 9 17l-5-5"/>',
+    'copy': '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
+  };
+  function paintIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try { window.lucide.createIcons(); } catch (e) {}
+    }
+    // Whatever the cdn did or did not do, make sure nothing is left blank.
+    $$('i[data-lucide]').forEach(function (el) {
+      var name = el.getAttribute('data-lucide');
+      if (FALLBACK[name]) {
+        el.outerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + FALLBACK[name] + '</svg>';
+      }
+    });
+  }
+  window.nnIcon = function (name) {
+    if (FALLBACK[name] && !(window.lucide && window.lucide.createIcons)) {
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + FALLBACK[name] + '</svg>';
+    }
+    var tmp = document.createElement('i');
+    tmp.setAttribute('data-lucide', name);
+    tmp.style.display = 'none';
+    document.body.appendChild(tmp);
+    if (window.lucide && window.lucide.createIcons) {
+      try { window.lucide.createIcons(); } catch (e) {}
+    }
+    var html = tmp.innerHTML;
+    tmp.remove();
+    return html || (FALLBACK[name] ? '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + FALLBACK[name] + '</svg>' : '');
+  };
+  paintIcons();
+
+  /* ---------- toast ---------- */
+  var toastEl = $('#toast'), toastT = 0;
+  window.nnToast = function (msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  };
+
+  /* ---------- smooth scroll ---------- */
+  var lenis = null;
+  if (window.Lenis && !reduce) {
+    try {
+      lenis = new window.Lenis({ duration: 1.15, smoothWheel: true, wheelMultiplier: 1, touchMultiplier: 1.6, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+      if (window.gsap && window.ScrollTrigger) {
+        window.gsap.registerPlugin(window.ScrollTrigger);
+        lenis.on('scroll', window.ScrollTrigger.update);
+        window.gsap.ticker.add(function (t) { lenis.raf(t * 1000); });
+        window.gsap.ticker.lagSmoothing(0);
+      } else {
+        var raf = function (t) { lenis.raf(t); requestAnimationFrame(raf); };
+        requestAnimationFrame(raf);
+      }
+    } catch (e) { lenis = null; }
+  }
+  $$('a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var id = a.getAttribute('href');
+      if (!id || id.length < 2) return;
+      var target = document.querySelector(id);
+      if (!target) return;
+      e.preventDefault();
+      if (lenis) lenis.scrollTo(target, { offset: -64, duration: 1.3 });
+      else target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      if (history.replaceState) history.replaceState(null, '', id);
+    });
+  });
+
+  /* ---------- preloader + entrance ---------- */
+  var boot = $('#boot'), bootNum = $('#bootNum'), bootBar = $('#bootBar');
+  var bootLogs = $$('#bootLog p');
+  var bootStart = performance.now(), bootDur = reduce ? 1 : 1150, bootDone = false;
+
+  function reveals() {
+    var els = $$('.reveal, .mask-lines');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.01, rootMargin: '0px 0px -7% 0px' });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  function splitHero() {
+    var sc = $('.split-chars');
+    if (!sc) return;
+    var txt = sc.textContent;
+    sc.textContent = '';
+    Array.prototype.slice.call(txt).forEach(function (ch, i) {
+      var s = document.createElement('span');
+      s.textContent = ch === ' ' ? '\u00A0' : ch;
+      s.style.transitionDelay = (120 + i * 42) + 'ms';
+      sc.appendChild(s);
+    });
+    sc.setAttribute('aria-label', txt);
+  }
+
+  function endBoot() {
+    if (bootDone) return;
+    bootDone = true;
+    if (!boot) return;
+    boot.classList.add('done');
+    document.body.classList.remove('is-locked');
+    setTimeout(function () { boot.style.display = 'none'; }, 1200);
+  }
+
+  function bootTick(now) {
+    if (!boot) return;
+    var k = Math.min(1, (now - bootStart) / bootDur);
+    var eased = 1 - Math.pow(1 - k, 3);
+    if (bootNum) bootNum.textContent = String(Math.round(eased * 100)).padStart(3, '0');
+    if (bootBar) bootBar.style.transform = 'scaleX(' + eased + ')';
+    bootLogs.forEach(function (el, i) { el.classList.toggle('on', eased * 4 > i + 0.1); });
+    if (k < 1) requestAnimationFrame(bootTick);
+    else { endBoot(); reveals(); }
+  }
+
+  document.body.classList.add('is-locked');
+  setTimeout(function(){ document.body.classList.remove('is-locked'); if (boot && !bootDone) { boot.classList.add('done'); setTimeout(function(){ boot.style.display='none'; },900); bootDone = true; reveals(); } }, 3200);
+  splitHero();
+  if (reduce) { endBoot(); reveals(); }
+  else requestAnimationFrame(bootTick);
+  if (reduce && boot) boot.style.display = 'none';
+
+  /* ---------- nav ---------- */
+  var nav = $('#nav'), lastY = 0;
+  function onScroll() {
+    var y = window.scrollY || window.pageYOffset;
+    if (nav) {
+      nav.classList.toggle('scrolled', y > 24);
+      if (y > 420 && y > lastY + 4) nav.classList.add('hide');
+      else if (y < lastY - 4 || y < 300) nav.classList.remove('hide');
+    }
+    lastY = y;
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* ---------- cursor ---------- */
+  if (fine && !reduce) {
+    var cur = $('#cursor'), dot = $('#cursorDot'), lbl = $('#cursorLabel');
+    if (cur && dot) {
+      var mx = window.innerWidth / 2, my = window.innerHeight / 2, cx = mx, cy = my, dx = mx, dy = my;
+      var shown = false;
+      window.addEventListener('mousemove', function (e) {
+        mx = e.clientX; my = e.clientY;
+        if (!shown) { shown = true; cur.classList.add('on'); dot.classList.add('on'); }
+      }, { passive: true });
+      (function loop() {
+        cx += (mx - cx) * 0.17; cy += (my - cy) * 0.17;
+        dx += (mx - dx) * 0.6; dy += (my - dy) * 0.6;
+        cur.style.transform = 'translate3d(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px,0)';
+        dot.style.transform = 'translate3d(' + dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px,0)';
+        requestAnimationFrame(loop);
+      })();
+      var HOT = '.btn, .icon-btn, [data-cursor], summary, .mode-pill';
+      document.addEventListener('mouseover', function (e) {
+        var t = e.target.closest ? e.target.closest(HOT) : null;
+        if (!t) {
+          document.body.classList.remove('cursor-hot', 'cursor-copy');
+          return;
+        }
+        var mode = t.getAttribute('data-cursor');
+        document.body.classList.toggle('cursor-copy', mode === 'copy');
+        document.body.classList.toggle('cursor-hot', mode !== 'copy');
+        if (lbl) lbl.textContent = mode || (t.tagName === 'SUMMARY' ? 'open' : (t.classList.contains('icon-btn') ? 'toggle' : 'press'));
+      });
+    }
+  }
+
+  /* ---------- magnetic buttons ---------- */
+  if (fine && !reduce && window.gsap) {
+    $$('.magnetic').forEach(function (el) {
+      el.addEventListener('mousemove', function (e) {
+        var r = el.getBoundingClientRect();
+        var x = (e.clientX - r.left - r.width / 2) / r.width;
+        var y = (e.clientY - r.top - r.height / 2) / r.height;
+        el.style.transform = 'translate(' + (x * 9).toFixed(2) + 'px,' + (y * 6).toFixed(2) + 'px)';
+      });
+      el.addEventListener('mouseleave', function () { el.style.transform = ''; });
+    });
+  }
+
+  /* ---------- scroll parallax on the ghost word ---------- */
+  if (window.gsap && window.ScrollTrigger && !reduce) {
+    var ghost = $('.hero-ghost');
+    if (ghost) {
+      window.gsap.to(ghost, {
+        yPercent: -18, ease: 'none',
+        scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true }
+      });
+    }
+    $$('.step').forEach(function (step, i) {
+      window.gsap.fromTo(step, { y: 18 }, {
+        y: 0, ease: 'none',
+        scrollTrigger: { trigger: step, start: 'top bottom', end: 'top 60%', scrub: true }
+      });
+    });
+  }
+
+  /* ---------- signal canvas ---------- */
+  var canvas = $('#signal');
+  if (canvas && canvas.getContext) { try {
+    var ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    var W = 0, H = 0, dpr = 1, t = 0;
+    var state = { live: false, peers: 0 };
+    function sizeCanvas() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var r = canvas.getBoundingClientRect();
+      W = Math.max(1, r.width); H = Math.max(1, r.height);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    sizeCanvas();
+    window.addEventListener('resize', sizeCanvas);
+    function node(x, y, r, on) {
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = on ? 'rgba(200,255,61,.85)' : 'rgba(237,233,223,.28)';
+      ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 2.1, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#c8ff3d' : 'rgba(237,233,223,.4)'; ctx.fill();
+    }
+    function draw() {
+      if (!W || !H) { sizeCanvas(); }
+      ctx.clearRect(0, 0, W, H);
+      var pad = 26, ax = pad + 8, ay = H * 0.5, bx = W - pad - 8, by = H * 0.5;
+      var active = state.live;
+      // baseline
+      ctx.setLineDash([2, 5]); ctx.lineWidth = 1;
+      ctx.strokeStyle = active ? 'rgba(200,255,61,.55)' : 'rgba(237,233,223,.16)';
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.setLineDash([]);
+      // ripples
+      if (active) {
+        for (var k = 0; k < 3; k++) {
+          var p = ((t / 90) + k / 3) % 1;
+          var px = ax + (bx - ax) * p;
+          ctx.beginPath(); ctx.arc(px, by, 3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(200,255,61,' + (0.85 * (1 - Math.abs(p - 0.5) * 1.2)).toFixed(3) + ')';
+          ctx.fill();
+        }
+      }
+      node(ax, ay, 9 + Math.sin(t / 40) * 0.8, true);
+      node(bx, by, 9 + Math.sin(t / 40 + 1.6) * 0.8, active || state.peers > 0);
+      // labels
+      ctx.font = '400 8px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(237,233,223,.42)';
+      ctx.textAlign = 'left'; ctx.fillText('YOU', ax - 9, ay + 26);
+      ctx.textAlign = 'right'; ctx.fillText(active || state.peers > 0 ? 'PEER' : 'NOBODY', bx + 9, by + 26);
+      t += 1;
+    }
+    var raf2 = null;
+    function loopCanvas() { draw(); raf2 = requestAnimationFrame(loopCanvas); }
+    if (reduce) draw(); else loopCanvas();
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { if (raf2) cancelAnimationFrame(raf2); raf2 = null; }
+      else if (!reduce && !raf2) loopCanvas();
+    });
+    window.nnSignal = function (s) { state.live = !!s.live; state.peers = s.peers || 0; if (reduce || !raf2) draw(); };
+  } catch (e) { /* silent: the diagram is decoration, never load-bearing */ } }
+
+  /* ---------- modals ---------- */
+  window.nnModal = function (id, open) {
+    var m = document.getElementById(id);
+    if (!m) return;
+    m.classList.toggle('open', !!open);
+    document.body.classList.toggle('is-locked', !!open);
+    if (open) {
+      var f = m.querySelector('input, button, textarea');
+      setTimeout(function () { if (f) f.focus({ preventScroll: true }); }, 240);
+    }
+  };
+  $$('[data-close-modal]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var m = b.closest('.modal');
+      if (m) window.nnModal(m.id, false);
+    });
+  });
+  $$('.modal').forEach(function (m) {
+    m.addEventListener('click', function (e) { if (e.target === m) window.nnModal(m.id, false); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') $$('.modal.open').forEach(function (m) { window.nnModal(m.id, false); });
+  });
+
+  /* ---------- copy helpers ---------- */
+  window.nnCopy = function (text, okMsg) {
+    var done = function () { window.nnToast(okMsg || 'Copied'); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { legacy(); });
+    } else legacy();
+    function legacy() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { window.nnToast('Copy failed — select manually'); }
+      ta.remove();
+    }
+  };
+})();
+</script>
+
+<script>
+/* ============================================================
+   nullnode · call engine
+   ============================================================ */
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var toast = function (m) { window.nnToast(m); };
+
+  var RELAY_KEY = 'nn.relay', MODE_KEY = 'nn.mode';
+  var DEFAULT_RELAY = (document.querySelector('meta[name="nullnode-relay"]') || {}).content || '';
+  var ICE = {
+    iceServers: [
+      { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      { urls: ['stun:stun.cloudflare.com:3478'] }
+    ]
+  };
+
+  var el = {
+    app: $('#app'), stage: $('#stage'), stateText: $('#stateText'), timer: $('#timer'),
+    addrCode: $('#addrCode'), remote: $('#remoteVideo'), local: $('#localVideo'), pip: $('#pip'),
+    lobby: $('#lobby'), waitingText: $('#waitingText'),
+    deckTitle: $('#deckTitle'), deckSub: $('#deckSub'),
+    bigCode: $('#bigCode'), inviteLink: $('#inviteLink'),
+    fpLocal: $('#fpLocal'), fpRemote: $('#fpRemote'), fpMatch: $('#fpMatch'),
+    fpLocalFull: $('#fpLocalFull'), fpRemoteFull: $('#fpRemoteFull'),
+    airgapOut: $('#airgapOut'), airgapIn: $('#airgapIn'), airgapOutLabel: $('#airgapOutLabel'),
+    airgapLead: $('#airgapLead'), airgapConnect: $('#airgapConnect'),
+    relayChip: $('#relayChip'), relayChipText: $('#relayChipText'), relayFoot: $('#relayFoot'),
+    modeRelay: $('#modeRelay'), modeAirgap: $('#modeAirgap'), modeHint: $('#modeHint'),
+    specPeers: $('#specPeers'), specState: $('#specState'),
+    stRes: $('#stRes'), stFps: $('#stFps'), stRate: $('#stRate'), stRtt: $('#stRtt'),
+    endedSub: $('#endedSub'), micBtn: $('#micBtn'), camBtn: $('#camBtn'),
+    micTip: $('#micTip'), camTip: $('#camTip'), shareBtn: $('#shareBtn')
+  };
+  var airgapBoxes = $$('[data-for="airgap"] .blob-box');
+  var airgapInLabel = airgapBoxes[1] ? airgapBoxes[1].querySelector('.blob-label span') : null;
+  var airgapPasteBtn = $('#pasteBlob');
+
+  var S = {
+    mode: 'airgap', relay: '', code: '', role: null,
+    pc: null, ws: null, local: null, remote: null,
+    iceQueue: [], timer: null, statsTimer: null, startedAt: 0,
+    prevBytes: 0, prevTs: 0, airgapStage: null, health: 'unknown'
+  };
+
+  /* ---------------------------------------------------------
+     state + copy
+     --------------------------------------------------------- */
+  var TITLES = {
+    idle: ['Idle', 'no session · permissions not requested'],
+    handshake: ['Handshaking', 'negotiating a direct channel'],
+    invite: ['Room open', 'waiting for one peer to join'],
+    airgap: ['Airgap', 'exchange one descriptor by hand'],
+    live: ['Live', 'encrypted · peer to peer'],
+    error: ['Halted', 'check permissions and relay url'],
+    ended: ['Room burned', 'nothing was retained']
+  };
+
+  function setState(name, opts) {
+    opts = opts || {};
+    S.state = name;
+    if (el.app) el.app.setAttribute('data-state', name);
+    var pair = TITLES[name] || TITLES.idle;
+    if (el.stateText) el.stateText.textContent = name === 'live' && S.role ? 'live · ' + S.role : name;
+    if (el.deckTitle) el.deckTitle.textContent = opts.title || pair[0];
+    if (el.deckSub) el.deckSub.textContent = opts.sub || pair[1];
+    if (el.specState) el.specState.textContent = name;
+    if (window.nnSignal) window.nnSignal({ live: name === 'live', peers: S.state === 'live' ? 2 : (name === 'invite' || name === 'handshake' || name === 'airgap' ? 1 : 0) });
+    if (el.specPeers) el.specPeers.textContent = String(name === 'live' ? 2 : (name === 'idle' || name === 'ended' || name === 'error' ? 0 : 1));
+  }
+
+  /* ---------------------------------------------------------
+     relay config
+     --------------------------------------------------------- */
+  function normalizeRelay(v) {
+    if (!v) return '';
+    v = String(v).trim().replace(/\/+$/, '');
+    if (!v) return '';
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    if (!/^https?:\/\/[^\s]+$/i.test(v)) return '';
+    return v;
+  }
+
+  function loadRelay() {
+    var fromUrl = null;
+    try { fromUrl = new URL(location.href).searchParams.get('relay'); } catch (e) {}
+    if (fromUrl) {
+      var n = normalizeRelay(fromUrl);
+      if (n) { try { localStorage.setItem(RELAY_KEY, n); } catch (e) {} return n; }
+    }
+    var saved = '';
+    try { saved = localStorage.getItem(RELAY_KEY) || ''; } catch (e) {}
+    return normalizeRelay(saved) || normalizeRelay(DEFAULT_RELAY);
+  }
+
+  function setMode(m, silent) {
+    if (m === 'relay' && !S.relay) {
+      if (!silent) { toast('Add a relay url first'); openSettings(); }
+      return;
+    }
+    S.mode = m;
+    try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+    if (el.modeRelay) el.modeRelay.setAttribute('aria-pressed', String(m === 'relay'));
+    if (el.modeAirgap) el.modeAirgap.setAttribute('aria-pressed', String(m === 'airgap'));
+    if (el.modeHint) {
+      el.modeHint.textContent = m === 'relay'
+        ? 'relay — handshake forwarded by a worker you control'
+        : 'airgap — handshake copied by hand, no server involved';
+    }
+  }
+
+  function paintRelay(status) {
+    S.health = status;
+    var text = status === 'live' ? 'relay online' : status === 'off' ? 'relay unreachable' : status === 'checking' ? 'checking relay' : (S.relay ? 'relay set' : 'relay unset');
+    if (el.relayChip) el.relayChip.setAttribute('data-state', status === 'live' ? 'live' : 'off');
+    if (el.relayChipText) el.relayChipText.textContent = text;
+    if (el.relayFoot) el.relayFoot.textContent = 'relay: ' + (S.relay ? (status === 'live' ? 'online' : status === 'off' ? 'unreachable' : 'configured') : 'unset');
+    if (el.modeRelay) el.modeRelay.title = S.relay ? S.relay : 'No relay configured — click to add one';
+    var out = $('#relayTestOut');
+    if (out && status) {
+      out.textContent = status === 'live' ? 'Reachable. Room keys will route through this worker.'
+        : status === 'off' ? 'No answer from that origin. Check the url, CORS and that the worker is deployed.'
+        : status === 'checking' ? 'Testing…' : 'Not tested.';
+    }
+  }
+
+  function checkRelay() {
+    if (!S.relay) { paintRelay('unknown'); return Promise.resolve(false); }
+    paintRelay('checking');
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var to = setTimeout(function () { if (ctrl) ctrl.abort(); }, 5000);
+    return fetch(S.relay + '/health', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('status ' + r.status)); })
+      .then(function (j) { clearTimeout(to); paintRelay(j && j.ok ? 'live' : 'off'); return true; })
+      .catch(function () { clearTimeout(to); paintRelay('off'); return false; });
+  }
+
+  S.relay = loadRelay();
+  var savedMode = '';
+  try { savedMode = localStorage.getItem(MODE_KEY) || ''; } catch (e) {}
+  setMode(savedMode === 'relay' && S.relay ? 'relay' : 'airgap', true);
+  paintRelay('unknown');
+  if (S.relay) checkRelay();
+  var relayInput = $('#relayInput');
+  if (relayInput) relayInput.value = S.relay;
+
+  /* ---------------------------------------------------------
+     media
+     --------------------------------------------------------- */
+  function mediaError(err) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'This browser cannot do webrtc here — https is required';
+    if (err && err.name === 'NotAllowedError') return 'Permission denied — allow camera and mic, then try again';
+    if (err && err.name === 'NotFoundError') return 'No camera or microphone found';
+    if (err && err.name === 'NotReadableError') return 'Device busy — close the other app using it';
+    return 'Could not open camera or mic';
+  }
+
+  function ensureMedia() {
+    if (S.local) return Promise.resolve(true);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast(mediaError());
+      setState('error', { title: 'Needs https', sub: 'getUserMedia is blocked on insecure origins' });
+      return Promise.resolve(false);
+    }
+    setState(S.state === 'idle' ? 'handshake' : S.state, { title: 'Requesting access', sub: 'answer the browser prompt' });
+    return navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+    }).then(function (stream) {
+      S.local = stream;
+      if (el.local) { el.local.srcObject = stream; el.local.play && el.local.play().catch(function () {}); }
+      if (el.pip) el.pip.classList.add('show');
+      updateAv();
+      return true;
+    }).catch(function (err) {
+      if (err && err.name === 'NotAllowedError') {
+        toast(mediaError(err));
+        setState('idle', { title: 'Permission denied', sub: 'allow camera + mic to place a call' });
+        return false;
+      }
+      return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        S.local = stream;
+        if (el.local) el.local.srcObject = stream;
+        if (el.pip) el.pip.classList.add('show');
+        updateAv();
+        toast('Camera unavailable — audio only');
+        return true;
+      }).catch(function (err2) {
+        toast(mediaError(err2));
+        setState('idle', { title: 'No devices', sub: 'camera and microphone unavailable' });
+        return false;
+      });
+    });
+  }
+
+  function stopLocal() {
+    if (S.local) {
+      S.local.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      S.local = null;
+    }
+    if (el.local) el.local.srcObject = null;
+    if (el.pip) el.pip.classList.remove('show');
+  }
+
+  function updateAv() {
+    var a = S.local ? S.local.getAudioTracks()[0] : null;
+    var v = S.local ? S.local.getVideoTracks()[0] : null;
+    var aOn = !a ? false : a.enabled;
+    var vOn = !v ? false : v.enabled;
+    if (el.micBtn) {
+      el.micBtn.setAttribute('aria-pressed', String(aOn));
+      el.micBtn.innerHTML = window.nnIcon(aOn ? 'mic' : 'mic-off') + '<span class="tip">' + (aOn ? 'Mute' : 'Unmute') + '</span>';
+      el.micBtn.setAttribute('aria-label', aOn ? 'Mute microphone' : 'Unmute microphone');
+    }
+    if (el.camBtn) {
+      el.camBtn.setAttribute('aria-pressed', String(vOn));
+      el.camBtn.innerHTML = window.nnIcon(vOn ? 'video' : 'video-off') + '<span class="tip">' + (vOn ? 'Camera off' : 'Camera on') + '</span>';
+      el.camBtn.setAttribute('aria-label', vOn ? 'Turn camera off' : 'Turn camera on');
+    }
+  }
+
+  /* ---------------------------------------------------------
+     peer connection
+     --------------------------------------------------------- */
+  function send(obj) {
+    if (S.ws && S.ws.readyState === 1) {
+      try { S.ws.send(JSON.stringify(obj)); return true; } catch (e) {}
+    }
+    return false;
+  }
+
+  function ensurePC() {
+    if (S.pc) return S.pc;
+    if (!window.RTCPeerConnection) { toast('WebRTC is not available in this browser'); return null; }
+    var pc = new RTCPeerConnection(ICE);
+    S.pc = pc;
+    S.iceQueue = [];
+
+    if (S.local) {
+      S.local.getTracks().forEach(function (tr) { pc.addTrack(tr, S.local); });
+    } else {
+      pc.addTransceiver('video', { direction: 'sendrecv' });
+      pc.addTransceiver('audio', { direction: 'sendrecv' });
+    }
+
+    pc.onicecandidate = function (e) {
+      if (e.candidate) send({ t: 'ice', candidate: e.candidate.toJSON() });
+    };
+    pc.ontrack = function (e) {
+      if (!S.remote) S.remote = new MediaStream();
+      if (e.streams && e.streams[0]) {
+        S.remote = e.streams[0];
+      } else if (!S.remote.getTracks().some(function (t) { return t.id === e.track.id; })) {
+        S.remote.addTrack(e.track);
+      }
+      if (el.remote) {
+        el.remote.srcObject = S.remote;
+        el.remote.classList.add('has-stream');
+        el.remote.play && el.remote.play().catch(function () {});
+      }
+    };
+    pc.onconnectionstatechange = function () {
+      var st = pc.connectionState;
+      if (st === 'connected') onConnected();
+      else if (st === 'disconnected') {
+        setState('handshake', { title: 'Reconnecting', sub: 'network changed — holding the line' });
+      } else if (st === 'failed') {
+        setState('error', { title: 'Connection failed', sub: 'no viable path — try airgap mode or a turn server' });
+      } else if (st === 'closed') {
+        /* handled by hangup */
+      }
+    };
+    return pc;
+  }
+
+  function waitIce(pc, ms) {
+    ms = ms || 2600;
+    return new Promise(function (resolve) {
+      if (pc.iceGatheringState === 'complete') return resolve();
+      var done = false;
+      function finish() {
+        if (done) return;
+        done = true;
+        pc.removeEventListener('icegatheringstatechange', check);
+        clearTimeout(t);
+        resolve();
+      }
+      function check() { if (pc.iceGatheringState === 'complete') finish(); }
+      pc.addEventListener('icegatheringstatechange', check);
+      var t = setTimeout(finish, ms);
+    });
+  }
+
+  function addIce(cand) {
+    if (!cand || !S.pc) return;
+    if (!S.pc.remoteDescription) { S.iceQueue.push(cand); return; }
+    S.pc.addIceCandidate(cand).catch(function () {});
+  }
+
+  function flushIce() {
+    if (!S.pc || !S.pc.remoteDescription) return;
+    var q = S.iceQueue; S.iceQueue = [];
+    q.forEach(function (c) { S.pc.addIceCandidate(c).catch(function () {}); });
+  }
+
+  function offer() {
+    var pc = ensurePC();
+    if (!pc) return;
+    setState('handshake', { title: 'Calling', sub: 'offering a direct channel' });
+    pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
+      .then(function (d) { return pc.setLocalDescription(d); })
+      .then(function () { send({ t: 'sdp', sdp: { type: 'offer', sdp: pc.localDescription.sdp } }); })
+      .catch(function () { toast('Could not create an offer'); });
+  }
+
+  function answer(offerSdp) {
+    var pc = ensurePC();
+    if (!pc) return;
+    setState('handshake', { title: 'Answering', sub: 'completing the handshake' });
+    pc.setRemoteDescription(new RTCSessionDescription(offerSdp))
+      .then(function () { flushIce(); return pc.createAnswer(); })
+      .then(function (d) { return pc.setLocalDescription(d); })
+      .then(function () {
+        send({ t: 'sdp', sdp: { type: 'answer', sdp: pc.localDescription.sdp } });
+        readFingerprints();
+      })
+      .catch(function () { toast('Handshake rejected'); });
+  }
+
+  function applyAnswer(ansSdp) {
+    if (!S.pc) return;
+    S.pc.setRemoteDescription(new RTCSessionDescription(ansSdp))
+      .then(function () { flushIce(); readFingerprints(); })
+      .catch(function () { toast('Answer rejected'); });
+  }
+
+  function onConnected() {
+    setState('live');
+    startTimer();
+    startStats();
+    readFingerprints();
+    window.nnSignal({ live: true, peers: 2 });
+  }
+
+  /* ---------------------------------------------------------
+     fingerprints
+     --------------------------------------------------------- */
+  function fpFrom(sdp) {
+    if (!sdp) return '';
+    var m = sdp.match(/a=fingerprint:sha-256\s+([0-9a-f:]+)/i);
+    return m ? m[1].toUpperCase() : '';
+  }
+  function shortFp(v) {
+    if (!v) return '—';
+    var p = v.split(':');
+    return p.slice(0, 4).join(':') + '…';
+  }
+  function readFingerprints() {
+    if (!S.pc) return;
+    var l = fpFrom(S.pc.localDescription && S.pc.localDescription.sdp);
+    var r = fpFrom(S.pc.remoteDescription && S.pc.remoteDescription.sdp);
+    if (el.fpLocal) el.fpLocal.textContent = shortFp(l);
+    if (el.fpRemote) el.fpRemote.textContent = shortFp(r);
+    if (el.fpLocalFull) el.fpLocalFull.textContent = l || '—';
+    if (el.fpRemoteFull) el.fpRemoteFull.textContent = r || '—';
+    if (el.fpMatch && el.fpMatch.getAttribute('data-ok') !== '1') {
+      el.fpMatch.textContent = l && r ? 'unverified' : 'waiting';
+    }
+  }
+
+  /* ---------------------------------------------------------
+     timer + telemetry
+     --------------------------------------------------------- */
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function startTimer() {
+    S.startedAt = Date.now();
+    clearInterval(S.timer);
+    S.timer = setInterval(function () {
+      var s = Math.floor((Date.now() - S.startedAt) / 1000);
+      if (el.timer) el.timer.textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+    }, 500);
+  }
+  function stopTimer() { clearInterval(S.timer); S.timer = null; }
+
+  function startStats() {
+    clearInterval(S.statsTimer);
+    S.prevBytes = 0; S.prevTs = 0;
+    S.statsTimer = setInterval(function () {
+      if (!S.pc || !S.pc.getStats) return;
+      S.pc.getStats(null).then(function (report) {
+        var res = '—', fps = '—', rtt = '—', bytes = null;
+        report.forEach(function (r) {
+          if (r.type === 'inbound-rtp' && r.kind === 'video') {
+            if (r.frameWidth) res = r.frameWidth + '×' + r.frameHeight;
+            if (r.framesPerSecond != null) fps = Math.round(r.framesPerSecond);
+            if (r.bytesReceived != null) bytes = r.bytesReceived;
+          }
+          if (r.type === 'candidate-pair' && (r.nominated || r.state === 'succeeded') && r.currentRoundTripTime != null) {
+            rtt = Math.round(r.currentRoundTripTime * 1000) + 'ms';
+          }
+        });
+        var rate = '—';
+        if (bytes != null) {
+          var now = performance.now();
+          if (S.prevTs && now > S.prevTs && bytes >= S.prevBytes) {
+            var kbps = ((bytes - S.prevBytes) * 8) / (now - S.prevTs);
+            rate = kbps > 1000 ? (kbps / 1000).toFixed(1) + 'mb' : Math.round(kbps) + 'kb';
+          }
+          S.prevBytes = bytes; S.prevTs = now;
+        }
+        if (el.stRes) el.stRes.textContent = res;
+        if (el.stFps) el.stFps.textContent = String(fps);
+        if (el.stRate) el.stRate.textContent = rate;
+        if (el.stRtt) el.stRtt.textContent = rtt;
+      }).catch(function () {});
+    }, 2000);
+  }
+  function stopStats() {
+    clearInterval(S.statsTimer); S.statsTimer = null;
+    [el.stRes, el.stFps, el.stRate, el.stRtt].forEach(function (n) { if (n) n.textContent = '—'; });
+  }
+
+  /* ---------------------------------------------------------
+     rooms · relay signalling
+     --------------------------------------------------------- */
+  function inviteLinkFor(code) {
+    return location.origin + location.pathname + '?r=' + code;
+  }
+
+  function showInvite(code) {
+    S.code = code;
+    if (el.addrCode) el.addrCode.textContent = code;
+    if (el.bigCode) el.bigCode.textContent = code;
+    if (el.inviteLink) el.inviteLink.value = inviteLinkFor(code);
+    setState('invite', { title: 'Room ' + code, sub: 'send the key to one person' });
+  }
+
+  function openSocket(code) {
+    if (!S.relay) { toast('No relay configured'); return; }
+    var base = S.relay.replace(/^http/i, 'ws');
+    var url = base + '/rooms/' + encodeURIComponent(code) + '/ws';
+    try {
+      S.ws = new WebSocket(url);
+    } catch (e) {
+      toast('Relay socket failed');
+      setState('error');
+      return;
+    }
+    S.ws.onopen = function () {
+      ensurePC();
+      setState('handshake', { title: 'Waiting', sub: 'relay connected · room ' + code });
+    };
+    S.ws.onmessage = function (ev) {
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      handleSignal(m);
+    };
+    S.ws.onclose = function () {
+      S.ws = null;
+      if (S.state === 'live') {
+        setState('handshake', { title: 'Relay dropped', sub: 'media may keep flowing · signalling lost' });
+        window.nnSignal({ live: false, peers: 2 });
+      }
+    };
+    S.ws.onerror = function () { /* handled by onclose */ };
+  }
+
+  function handleSignal(m) {
+    if (!m || !m.t) return;
+    if (m.t === 'welcome') {
+      S.role = m.role;
+      if (m.role === 'host') {
+        if (m.peers >= 2) offer();
+        else showInvite(m.code || S.code);
+      } else {
+        showInvite(m.code || S.code);
+        if (el.waitingText) el.waitingText.textContent = 'connected to relay · waiting for the handshake';
+        setState('handshake', { title: 'Connected', sub: 'waiting for the host to offer' });
+      }
+      return;
+    }
+    if (m.t === 'peer-joined') {
+      if (el.waitingText) el.waitingText.textContent = 'peer found · negotiating';
+      if (S.role === 'host') offer();
+      return;
+    }
+    if (m.t === 'peer-left') {
+      if (el.waitingText) el.waitingText.textContent = 'the other side left';
+      if (S.state === 'live' || S.state === 'handshake') {
+        toast('Peer disconnected');
+        closePeer();
+        if (S.mode === 'relay' && S.code) { showInvite(S.code); } else setState('idle');
+      }
+      return;
+    }
+    if (m.t === 'sdp' && m.sdp) {
+      if (m.sdp.type === 'offer') answer(m.sdp);
+      else if (m.sdp.type === 'answer') applyAnswer(m.sdp);
+      return;
+    }
+    if (m.t === 'ice' && m.candidate) { addIce(m.candidate); return; }
+    if (m.t === 'error') {
+      if (m.code === 'room_full') {
+        toast('That room already holds two peers');
+        setState('error', { title: 'Room full', sub: 'two peers is the limit' });
+      } else if (m.code === 'rate_limited') {
+        toast('Slow down — too many attempts');
+      }
+      return;
+    }
+    if (m.t === 'bye') {
+      toast('The other side hung up');
+      hangup(false);
+    }
+  }
+
+  /* ---------------------------------------------------------
+     actions
+     --------------------------------------------------------- */
+  function createRoom() {
+    ensureMedia().then(function (ok) {
+      if (!ok) return;
+      if (S.mode === 'relay' && S.relay) {
+        setState('handshake', { title: 'Opening room', sub: 'asking the relay for a key' });
+        fetch(S.relay + '/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(String(r.status))); })
+          .then(function (j) {
+            if (!j || !j.code) throw new Error('no code');
+            showInvite(j.code);
+            openSocket(j.code);
+            paintRelay('live');
+          })
+          .catch(function () {
+            toast('Relay unreachable — switching to airgap');
+            paintRelay('off');
+            setMode('airgap', true);
+            airgapBegin('host');
+          });
+      } else {
+        airgapBegin('host');
+      }
+    });
+  }
+
+  function joinRoom(codeRaw) {
+    var code = String(codeRaw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (code.length !== 6) { toast('A room key is six characters'); return; }
+    ensureMedia().then(function (ok) {
+      if (!ok) return;
+      if (S.mode === 'relay' && S.relay) {
+        S.code = code;
+        if (el.addrCode) el.addrCode.textContent = code;
+        ensurePC();
+        openSocket(code);
+        setState('handshake', { title: 'Joining ' + code, sub: 'contacting the relay' });
+      } else {
+        S.code = code;
+        if (el.addrCode) el.addrCode.textContent = code;
+        airgapBegin('guest');
+      }
+    });
+  }
+
+  /* ---------- airgap ---------- */
+  function airgapBegin(role) {
+    S.airgapStage = role;
+    setState('airgap', { title: role === 'host' ? 'Offering' : 'Answering', sub: 'no server involved' });
+    if (el.airgapOut) el.airgapOut.value = '';
+    if (el.airgapIn) { el.airgapIn.value = ''; el.airgapIn.readOnly = false; }
+
+    var pc = ensurePC();
+    if (!pc) return;
+
+    if (role === 'host') {
+      if (el.airgapOutLabel) el.airgapOutLabel.textContent = '01 — your offer';
+      if (airgapInLabel) airgapInLabel.textContent = '02 — their answer';
+      if (el.airgapPasteBtn) el.airgapPasteBtn.style.display = 'inline';
+      if (el.airgapConnect) el.airgapConnect.textContent = 'Connect';
+      if (el.airgapLead) el.airgapLead.textContent = 'No relay, no server, no third party. Copy the offer below, send it to your peer over any channel you trust, then paste their answer back and connect.';
+      pc.createOffer().then(function (d) { return pc.setLocalDescription(d); })
+        .then(function () { return waitIce(pc); })
+        .then(function () {
+          if (el.airgapOut) el.airgapOut.value = pc.localDescription.sdp;
+          readFingerprints();
+        })
+        .catch(function () { toast('Could not build the offer'); });
+    } else {
+      if (el.airgapOutLabel) el.airgapOutLabel.textContent = '02 — your answer';
+      if (airgapInLabel) airgapInLabel.textContent = '01 — their offer';
+      if (el.airgapPasteBtn) el.airgapPasteBtn.style.display = 'inline';
+      if (el.airgapConnect) el.airgapConnect.textContent = 'Generate answer';
+      if (el.airgapLead) el.airgapLead.textContent = 'Paste the offer you received below, generate your answer, and send it back. Nothing touches a server.';
+      if (el.airgapOut) el.airgapOut.value = '';
+    }
+  }
+
+  function airgapAction() {
+    if (!S.pc) { toast('Nothing to connect yet'); return; }
+    if (S.airgapStage === 'host') {
+      var ans = el.airgapIn ? el.airgapIn.value.trim() : '';
+      if (!ans) { toast('Paste their answer first'); return; }
+      if (ans.indexOf('a=answer') === -1) { toast('That does not look like an answer'); return; }
+      applyAnswer({ type: 'answer', sdp: ans });
+      setState('handshake', { title: 'Connecting', sub: 'ice is finding a path' });
+    } else {
+      var off = el.airgapIn ? el.airgapIn.value.trim() : '';
+      if (!off) { toast('Paste their offer first'); return; }
+      if (off.indexOf('a=offer') === -1) { toast('That does not look like an offer'); return; }
+      var pc = S.pc;
+      setState('handshake', { title: 'Answering', sub: 'building your descriptor' });
+      pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: off }))
+        .then(function () { flushIce(); return pc.createAnswer(); })
+        .then(function (d) { return pc.setLocalDescription(d); })
+        .then(function () { return waitIce(pc); })
+        .then(function () {
+          if (el.airgapOut) el.airgapOut.value = pc.localDescription.sdp;
+          if (el.airgapIn) el.airgapIn.readOnly = true;
+          if (el.airgapOutLabel) el.airgapOutLabel.textContent = '02 — your answer · send this back';
+          if (el.airgapConnect) el.airgapConnect.textContent = 'Waiting for connection';
+          readFingerprints();
+          setState('airgap', { title: 'Answer ready', sub: 'send the answer to the host' });
+        })
+        .catch(function () { toast('Could not read that offer'); });
+    }
+  }
+
+  /* ---------- hangup ---------- */
+  function closePeer() {
+    if (S.pc) {
+      try { S.pc.ontrack = null; S.pc.onicecandidate = null; S.pc.onconnectionstatechange = null; S.pc.close(); } catch (e) {}
+      S.pc = null;
+    }
+    if (S.remote) {
+      S.remote.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      S.remote = null;
+    }
+    if (el.remote) {
+      el.remote.srcObject = null;
+      el.remote.classList.remove('has-stream');
+    }
+    S.iceQueue = [];
+    stopStats();
+  }
+
+  function burnRoom() {
+    if (S.mode !== 'relay' || !S.relay || !S.code) return;
+    try {
+      fetch(S.relay + '/rooms/' + encodeURIComponent(S.code), { method: 'DELETE', keepalive: true });
+    } catch (e) {}
+  }
+
+  function hangup(showEnded) {
+    if (S.ws) {
+      send({ t: 'bye' });
+      try { S.ws.close(); } catch (e) {}
+      S.ws = null;
+    }
+    closePeer();
+    stopLocal();
+    stopTimer();
+    burnRoom();
+    var wasLive = S.startedAt > 0;
+    S.startedAt = 0;
+    S.role = null;
+    S.airgapStage = null;
+    S.verified = false;
+    S.code = '';
+    if (el.addrCode) el.addrCode.textContent = '------';
+    if (el.timer) el.timer.textContent = '00:00';
+    if (el.bigCode) el.bigCode.textContent = '------';
+    if (el.inviteLink) el.inviteLink.value = '';
+    if (el.fpLocal) el.fpLocal.textContent = '—';
+    if (el.fpRemote) el.fpRemote.textContent = '—';
+    if (el.fpLocalFull) el.fpLocalFull.textContent = '—';
+    if (el.fpRemoteFull) el.fpRemoteFull.textContent = '—';
+    if (el.fpMatch) { el.fpMatch.setAttribute('data-ok', '0'); el.fpMatch.textContent = 'unverified'; }
+    if (el.airgapOut) el.airgapOut.value = '';
+    if (el.airgapIn) { el.airgapIn.value = ''; el.airgapIn.readOnly = false; }
+    window.nnSignal({ live: false, peers: 0 });
+    if (showEnded === false) setState('idle');
+    else { setState('ended'); if (el.endedSub && wasLive) el.endedSub.textContent = 'The peer connection is closed, every track is stopped and the room key was deleted. Nothing was written down.'; }
+  }
+
+  /* ---------------------------------------------------------
+     controls
+     --------------------------------------------------------- */
+  if (el.micBtn) el.micBtn.addEventListener('click', function () {
+    if (!S.local) { toast('Start a call first'); return; }
+    var a = S.local.getAudioTracks()[0];
+    if (!a) { toast('No microphone track'); return; }
+    a.enabled = !a.enabled;
+    updateAv();
+  });
+
+  if (el.camBtn) el.camBtn.addEventListener('click', function () {
+    if (!S.local) { toast('Start a call first'); return; }
+    var v = S.local.getVideoTracks()[0];
+    if (!v) { toast('No camera track'); return; }
+    v.enabled = !v.enabled;
+    updateAv();
+  });
+
+  if (el.shareBtn) el.shareBtn.addEventListener('click', function () {
+    if (!S.pc) { toast('Start a call first'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast('Screen share unsupported here'); return; }
+    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false }).then(function (ss) {
+      var sender = S.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
+      if (!sender) { toast('No video sender'); return; }
+      var camTrack = sender.track;
+      sender.replaceTrack(ss.getVideoTracks()[0]);
+      el.shareBtn.setAttribute('aria-pressed', 'true');
+      toast('Sharing screen');
+      ss.getVideoTracks()[0].onended = function () {
+        if (camTrack) sender.replaceTrack(camTrack).catch(function () {});
+        el.shareBtn.setAttribute('aria-pressed', 'false');
+        toast('Screen share ended');
+      };
+    }).catch(function () { /* user cancelled */ });
+  });
+
+  $('#createBtn').addEventListener('click', createRoom);
+  $('#joinForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    joinRoom($('#codeInput').value);
+  });
+  var codeInput = $('#codeInput');
+  if (codeInput) {
+    codeInput.addEventListener('input', function () {
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    });
+  }
+  $('#hangupBtn').addEventListener('click', function () { hangup(true); });
+  $('#cancelRoom').addEventListener('click', function () { hangup(false); });
+  $('#dismissEnded').addEventListener('click', function () { setState('idle'); });
+  $('#againBtn').addEventListener('click', function () { hangup(false); createRoom(); });
+  $('#copyLinkBtn').addEventListener('click', function () {
+    if (el.inviteLink && el.inviteLink.value) window.nnCopy(el.inviteLink.value, 'Invite link copied');
+  });
+  $('#airgapFromInvite').addEventListener('click', function () { airgapBegin('host'); });
+  $('#airgapConnect').addEventListener('click', airgapAction);
+  $('#airgapClose').addEventListener('click', function () { hangup(false); });
+  $('#airgapReset').addEventListener('click', function () {
+    closePeer();
+    var role = S.airgapStage || 'host';
+    airgapBegin(role);
+  });
+  $('#copyBlob').addEventListener('click', function () {
+    if (el.airgapOut && el.airgapOut.value) window.nnCopy(el.airgapOut.value, 'Descriptor copied');
+    else toast('Nothing to copy yet');
+  });
+  if (airgapPasteBtn) airgapPasteBtn.addEventListener('click', function () {
+    if (!navigator.clipboard || !window.isSecureContext) { toast('Paste with your keyboard'); return; }
+    navigator.clipboard.readText().then(function (t) {
+      if (el.airgapIn) el.airgapIn.value = t;
+      toast('Pasted');
+    }).catch(function () { toast('Clipboard blocked — paste manually'); });
+  });
+
+  /* ---------- mode pills ---------- */
+  if (el.modeRelay) el.modeRelay.addEventListener('click', function () {
+    if (!S.relay) { openSettings(); toast('Add a relay url first'); return; }
+    setMode('relay');
+  });
+  if (el.modeAirgap) el.modeAirgap.addEventListener('click', function () { setMode('airgap'); });
+
+  /* ---------- settings ---------- */
+  function openSettings() {
+    var inp = $('#relayInput');
+    if (inp) inp.value = S.relay;
+    paintRelay(S.relay ? (S.health === 'unknown' ? 'unknown' : S.health) : 'unknown');
+    window.nnModal('settingsModal', true);
+  }
+  $('#settingsBtn').addEventListener('click', openSettings);
+  var openSettingsFoot = $('#openSettingsFoot');
+  if (openSettingsFoot) openSettingsFoot.addEventListener('click', function (e) { e.preventDefault(); openSettings(); });
+  var openDeploy = $('#openDeploy');
+  if (openDeploy) openDeploy.addEventListener('click', function (e) { e.preventDefault(); window.nnModal('deployModal', true); });
+  $('#saveRelay').addEventListener('click', function () {
+    var v = normalizeRelay($('#relayInput').value);
+    if (!v) { toast('That url does not look right'); return; }
+    S.relay = v;
+    try { localStorage.setItem(RELAY_KEY, v); } catch (e) {}
+    setMode('relay', true);
+    window.nnModal('settingsModal', false);
+    checkRelay().then(function (ok) {
+      toast(ok ? 'Relay online' : 'Saved — but the relay did not answer');
+    });
+  });
+  $('#clearRelay').addEventListener('click', function () {
+    S.relay = '';
+    try { localStorage.removeItem(RELAY_KEY); } catch (e) {}
+    $('#relayInput').value = '';
+    setMode('airgap', true);
+    paintRelay('unknown');
+    toast('Relay cleared — airgap only');
+  });
+  $('#testRelay').addEventListener('click', function () {
+    var v = normalizeRelay($('#relayInput').value);
+    if (!v) { $('#relayTestOut').textContent = 'Enter a url first.'; return; }
+    S.relay = v;
+    checkRelay();
+  });
+  $('#copyDeploy').addEventListener('click', function () {
+    var t = $('#deployBlob');
+    window.nnCopy(t ? t.value : '', 'Deploy commands copied');
+  });
+  var copyCmds = $('#copyCmds');
+  if (copyCmds) copyCmds.addEventListener('click', function () {
+    var pre = $('#deployCmds');
+    window.nnCopy(pre ? pre.innerText : '', 'Commands copied');
+  });
+  var deployToSettings = $('#deployToSettings');
+  if (deployToSettings) deployToSettings.addEventListener('click', function () {
+    window.nnModal('deployModal', false);
+    openSettings();
+  });
+
+  /* ---------- verify ---------- */
+  $('#verifyBtn').addEventListener('click', function () {
+    readFingerprints();
+    window.nnModal('verifyModal', true);
+  });
+  $('#markVerified').addEventListener('click', function () {
+    if (el.fpMatch) { el.fpMatch.setAttribute('data-ok', '1'); el.fpMatch.textContent = 'verified out loud'; }
+    window.nnModal('verifyModal', false);
+    toast('Marked as verified');
+  });
+
+  /* ---------- deep link ---------- */
+  (function () {
+    var code = null;
+    try { code = new URL(location.href).searchParams.get('r'); } catch (e) {}
+    if (!code) return;
+    code = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (codeInput) codeInput.value = code;
+    if (el.deckTitle) el.deckTitle.textContent = 'Invited';
+    if (el.deckSub) el.deckSub.textContent = 'room ' + code + ' · press join to open your camera';
+    setState('idle', { title: 'Invited', sub: 'room ' + code + ' · press join to open your camera' });
+    setTimeout(function () {
+      var room = $('#room');
+      if (room && room.scrollIntoView) room.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 1500);
+  })();
+
+  /* ---------- global start buttons ---------- */
+  $$('[data-start]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var room = $('#room');
+      if (room && room.scrollIntoView) room.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(function () {
+        if (S.state === 'idle' || S.state === 'ended') createRoom();
+      }, 520);
+    });
+  });
+
+  /* ---------- leave safely ---------- */
+  window.addEventListener('pagehide', function () {
+    if (S.ws) send({ t: 'bye' });
+    if (S.pc) { try { S.pc.close(); } catch (e) {} }
+    if (S.local) S.local.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+  });
+
+})();
+</script>
+</body>
+</html>
