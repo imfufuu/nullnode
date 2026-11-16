@@ -1,0 +1,84 @@
+name: verify-relay
+
+# End-to-end check of the *deployed* relay, from a network that can reach it.
+#
+# Extracts the worker url from index.html (the <meta name="nullnode-relay"> tag
+# that ./scripts/deploy-worker.sh --wire writes) and runs the same 19-check
+# harness used locally: room lifecycle, role assignment, verbatim sdp/ice
+# forwarding, third-peer rejection, burn-on-delete.
+
+on:
+  workflow_dispatch:
+    inputs:
+      relay_url:
+        description: "Override the url from index.html"
+        type: string
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "worker/**"
+      - "scripts/smoke-test.mjs"
+      - ".github/workflows/verify-relay.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke test the live relay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resolve the relay url
+        id: url
+        env:
+          OVERRIDE: ${{ inputs.relay_url }}
+        run: |
+          if [ -n "$OVERRIDE" ]; then
+            url="$OVERRIDE"
+          else
+            url=$(grep -o 'name="nullnode-relay" content="[^"]*"' index.html \
+                  | sed 's/.*content="//; s/"$//')
+          fi
+          if [ -z "$url" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=No relay configured::index.html has no nullnode-relay meta tag. Run ./scripts/deploy-worker.sh --wire and push."
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Checking $url"
+
+      - name: Health
+        if: steps.url.outputs.found == 'true'
+        env:
+          URL: ${{ steps.url.outputs.url }}
+        run: |
+          curl -fsS --max-time 15 "$URL/health" | tee health.json
+          node -e "const h=require('./health.json'); if(!h.ok) process.exit(1); console.log('version', h.version, '· peers/room', h.peerLimit, '· ttl', h.ttlSeconds+'s')"
+
+      - name: Signalling smoke test (19 checks)
+        if: steps.url.outputs.found == 'true'
+        env:
+          URL: ${{ steps.url.outputs.url }}
+        run: node scripts/smoke-test.mjs "$URL"
+
+      - name: Summary
+        if: steps.url.outputs.found == 'true'
+        env:
+          URL: ${{ steps.url.outputs.url }}
+        run: |
+          {
+            echo "### Relay verified"
+            echo ""
+            echo "\`$URL\` passed the full signalling suite on $(date -u '+%Y-%m-%d %H:%M UTC')."
+            echo ""
+            echo "The client in \`index.html\` points at this url."
+          } >> "$GITHUB_STEP_SUMMARY"
