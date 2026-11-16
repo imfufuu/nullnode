@@ -10,7 +10,7 @@
 #   CLOUDFLARE_API_TOKEN   token with  Account → Workers Scripts:Edit
 #                                    and  Account → Account Settings:Read
 #   CLOUDFLARE_ACCOUNT_ID  the 32-char account id from the dashboard
-#   (optional) CLOUDFLARE_WORKER_NAME  defaults to nullnode-relay
+#   (optional) CLOUDFLARE_WORKER_NAME  defaults to nullnode
 #
 # Nothing is stored by the script except .deploy/worker-url.txt (git-ignored).
 # ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ for arg in "$@"; do
   esac
 done
 
-WORKER_NAME="${CLOUDFLARE_WORKER_NAME:-nullnode-relay}"
+WORKER_NAME="${CLOUDFLARE_WORKER_NAME:-nullnode}"
 
 # ---- credentials ----------------------------------------------------------
 step "Checking credentials"

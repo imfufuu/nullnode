@@ -1,6 +1,6 @@
 # NullNode relay — Cloudflare Worker + one Durable Object.
 # Deploy with:  ./scripts/deploy-worker.sh   (or: npx wrangler@4 deploy)
-name = "nullnode-relay"
+name = "nullnode"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
