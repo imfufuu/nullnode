@@ -46,8 +46,10 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
-          cp index.html _site/index.html
-          ls -lh _site
+          cp index.html app.html _site/
+          cp -R assets _site/assets
+          printf '' > _site/.nojekyll
+          find _site -type f | sort | xargs ls -lh
 
       - uses: actions/upload-pages-artifact@v3
         with:

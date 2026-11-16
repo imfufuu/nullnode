@@ -3,7 +3,7 @@
 # NullNode · deploy the signalling relay to Cloudflare
 #
 #   ./scripts/deploy-worker.sh              deploy, print the worker url
-#   ./scripts/deploy-worker.sh --wire       deploy, then write the url into index.html
+#   ./scripts/deploy-worker.sh --wire       deploy, then write the url into both pages
 #   ./scripts/deploy-worker.sh --dry-run    build only, no upload
 #
 # Requires:
@@ -177,14 +177,18 @@ if [ "$WIRE" -eq 1 ] && ! printf '%s' "$URL" | grep -q '<your-subdomain>'; then
   python3 - "$URL" <<'PY'
 import re, sys, pathlib
 url = sys.argv[1]
-p = pathlib.Path('index.html')
-s = p.read_text()
-s2, n = re.subn(r'<meta name="nullnode-relay" content="[^"]*">',
-                '<meta name="nullnode-relay" content="%s">' % url, s)
-p.write_text(s2)
-print('  meta updated' if n else '  meta tag not found')
+for name in ('index.html', 'app.html'):
+    p = pathlib.Path(name)
+    if not p.exists():
+        print('  %s missing' % name)
+        continue
+    s = p.read_text()
+    s2, n = re.subn(r'<meta name="nullnode-relay" content="[^"]*">',
+                    '<meta name="nullnode-relay" content="%s">' % url, s)
+    p.write_text(s2)
+    print('  %s: %s' % (name, 'meta updated' if n else 'meta tag not found'))
 PY
-  git add index.html 2>/dev/null || true
+  git add index.html app.html 2>/dev/null || true
   git commit -m "relay: point the client at $URL" >/dev/null 2>&1 || say "  ${DIM}nothing to commit${X}"
 fi
 
