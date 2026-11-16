@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Single-origin preview: serves index.html and proxies /relay/* to a locally
+ * Single-origin preview: serves the pages under ROOT and proxies /relay/* to a locally
  * running `wrangler dev`, including the WebSocket upgrade. That makes relay mode
  * testable in a browser without deploying anything or fighting CORS.
  *
@@ -72,7 +72,7 @@ const server = http.createServer((req, res) => {
     const relayUrl = `${proto}://${req.headers.host}/relay`;
     data = Buffer.from(
       data.toString('utf8').replace(
-        '<meta name="nullnode-relay" content="">',
+        /<meta name="nullnode-relay" content="[^"]*">/,
         `<meta name="nullnode-relay" content="${relayUrl}">`
       )
     );

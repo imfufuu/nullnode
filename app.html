@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NullNode · the room</title>
+<meta name="description" content="An encrypted peer-to-peer room for two: video, text, files and a shared board. Nothing is stored.">
+<meta name="theme-color" content="#08090a">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<script>document.documentElement.classList.remove("no-js");document.documentElement.classList.add("js");</script>
+<script>try{if(sessionStorage.getItem("nn.nav")==="1"){document.documentElement.className+=" nav-arrive";}}catch(e){}</script>
+<meta name="nullnode-relay" content="https://nullnode.dubhe-agent.workers.dev">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090a'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='none' stroke='%23c8ff3d' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23c8ff3d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="room-body">
+
+<div class="wipe" aria-hidden="true"><b>null<em>node</em></b></div>
+
+
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="cursor" id="cursor" aria-hidden="true"><span id="cursorLabel">copy</span></div>
+<div class="cursor-dot" id="cursorDot" aria-hidden="true"></div>
+
+<div class="room" id="room" data-state="idle">
+
+  <!-- top bar -->
+  <header class="bar">
+    <div class="bar-l">
+      <a href="index.html" class="brand" aria-label="Back to NullNode">
+        <i class="node" aria-hidden="true"></i><b>NULL</b><span class="slash">/</span><b>NODE</b>
+      </a>
+      <span class="addr">room/<b id="addrCode">------</b></span>
+    </div>
+    <div class="bar-r">
+      <span class="chip" id="relayChip" data-state="off" title="Signalling relay">
+        <i aria-hidden="true"></i><span id="relayChipText">relay unset</span>
+      </span>
+      <span class="app-state"><i aria-hidden="true"></i><span id="stateText" aria-live="polite">idle</span></span>
+      <span class="timer" id="timer">00:00</span>
+      <button class="icon-btn sm" id="verifyBtn" aria-label="Verify the line">
+        <i data-lucide="shield-check" aria-hidden="true"></i><span class="tip">Verify</span>
+      </button>
+      <button class="icon-btn sm" id="settingsBtn" aria-label="Relay settings">
+        <i data-lucide="sliders-horizontal" aria-hidden="true"></i><span class="tip">Relay</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+    <div class="center">
+      <main class="stage" id="stage">
+        <video id="remoteVideo" autoplay playsinline aria-label="Remote participant"></video>
+
+        <div class="badges">
+          <span class="pill live"><i aria-hidden="true"></i>live</span>
+          <span class="pill" id="encBadge">encrypted</span>
+          <span class="pill path" id="pathBadge" hidden>path —</span>
+        </div>
+
+        <div class="waiting" id="waiting">
+          <div>
+            <div class="spinner"></div>
+            <p id="waitingText">waiting for the other side</p>
+          </div>
+        </div>
+
+        <!-- lobby -->
+        <div class="lobby" id="lobby">
+          <div class="lobby-col">
+            <div class="lobby-k"><b>A</b> host</div>
+            <h1 class="lobby-title">Create a room.</h1>
+            <p class="lobby-copy">A six-character key is generated locally. Send it to exactly one person.</p>
+            <button class="btn btn-primary" id="createBtn"><i data-lucide="radio" aria-hidden="true"></i>Create a room</button>
+          </div>
+          <div class="lobby-sep" aria-hidden="true"></div>
+          <div class="lobby-col">
+            <div class="lobby-k"><b>B</b> guest</div>
+            <h1 class="lobby-title">Join with a key.</h1>
+            <p class="lobby-copy">Six characters, no password. Ask the host to read it out loud.</p>
+            <form id="joinForm" autocomplete="off">
+              <div class="code-in">
+                <input id="codeInput" maxlength="6" placeholder="------" aria-label="Room key"
+                       spellcheck="false" autocapitalize="characters" inputmode="text">
+                <span class="hint">6 chr</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="joinBtn" type="submit" style="margin-top:10px;width:100%">
+                <i data-lucide="log-in" aria-hidden="true"></i>Join the room
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- invite -->
+        <div class="overlay" data-for="invite">
+          <div class="ov-title">Room is <em>open.</em></div>
+          <div class="room-code-big"><span class="code" id="bigCode">------</span></div>
+          <p class="ov-sub" id="inviteSub">Send this link to the one person you want to talk to. It expires when either side hangs up.</p>
+          <div class="copy-field">
+            <input id="inviteLink" readonly aria-label="Invite link">
+            <button class="btn btn-ghost btn-sm" id="copyLinkBtn" data-cursor="copy">Copy</button>
+          </div>
+          <div class="ov-actions">
+            <button class="btn btn-ghost btn-sm" id="cancelRoom"><i data-lucide="x" aria-hidden="true"></i>Cancel room</button>
+          </div>
+        </div>
+
+        <!-- airgap -->
+        <div class="overlay" data-for="airgap">
+          <div class="ov-title">Hand it over <em>by hand.</em></div>
+          <p class="ov-sub" id="airgapLead">No relay, no server, no third party. Copy the offer below, send it to your peer over any channel you trust, then paste their answer back and connect.</p>
+          <div class="blob-box">
+            <div class="blob-label"><span id="airgapOutLabel">01 — your offer</span><button class="mono acid" id="copyBlob" data-cursor="copy" type="button">Copy</button></div>
+            <textarea id="airgapOut" readonly spellcheck="false" aria-label="Your session descriptor"></textarea>
+          </div>
+          <div class="blob-box">
+            <div class="blob-label"><span id="airgapInLabel">02 — their answer</span><button class="mono dim" id="pasteBlob" type="button">Paste</button></div>
+            <textarea id="airgapIn" spellcheck="false" placeholder="Paste the descriptor you received…" aria-label="Peer descriptor"></textarea>
+          </div>
+          <div class="ov-actions">
+            <button class="btn btn-primary btn-sm" id="airgapConnect">Connect</button>
+            <button class="btn btn-ghost btn-sm" id="airgapUseRelay" hidden><i data-lucide="radio" aria-hidden="true"></i>Use the relay</button>
+            <button class="btn btn-ghost btn-sm" id="airgapReset">Reset</button>
+            <button class="btn btn-ghost btn-sm" id="airgapClose">Close</button>
+          </div>
+        </div>
+
+        <!-- ended -->
+        <div class="overlay" data-for="ended">
+          <div class="ov-title">Room <em>burned.</em></div>
+          <p class="ov-sub" id="endedSub">The peer connection is closed, tracks are stopped and the room key was deleted from the relay. Nothing was written down.</p>
+          <div class="ov-actions">
+            <button class="btn btn-primary btn-sm" id="againBtn"><i data-lucide="rotate-ccw" aria-hidden="true"></i>New room</button>
+            <button class="btn btn-ghost btn-sm" id="dismissEnded">Stay here</button>
+          </div>
+        </div>
+
+        <div class="pip" id="pip"><video id="localVideo" autoplay playsinline muted aria-label="Your camera"></video></div>
+
+        <div class="mode-bar">
+          <div class="mode-switch" role="group" aria-label="Signalling mode">
+            <button class="mode-pill" id="modeRelay" aria-pressed="false"><i aria-hidden="true"></i>Relay</button>
+            <button class="mode-pill" id="modeAirgap" aria-pressed="true"><i aria-hidden="true"></i>Airgap</button>
+          </div>
+          <span class="mono dim" id="modeHint">airgap</span>
+        </div>
+      </main>
+
+      <!-- control deck -->
+      <footer class="deck">
+        <div class="deck-l">
+          <button class="icon-btn" id="micBtn" aria-pressed="true" aria-label="Microphone"><i data-lucide="mic" aria-hidden="true"></i><span class="tip">Mute</span></button>
+          <button class="icon-btn" id="camBtn" aria-pressed="true" aria-label="Camera"><i data-lucide="video" aria-hidden="true"></i><span class="tip">Camera off</span></button>
+          <button class="icon-btn" id="shareBtn" aria-pressed="false" aria-label="Share screen"><i data-lucide="screen-share" aria-hidden="true"></i><span class="tip">Share screen</span></button>
+          <div class="deck-status">
+            <b id="deckTitle">Idle</b>
+            <span id="deckSub">no session · permissions not requested</span>
+          </div>
+        </div>
+        <div class="deck-r">
+          <div class="stats-readout" aria-hidden="true">
+            <div>res<b id="stRes">—</b></div>
+            <div>fps<b id="stFps">—</b></div>
+            <div>rate<b id="stRate">—</b></div>
+            <div>rtt<b id="stRtt">—</b></div>
+          </div>
+          <button class="icon-btn" id="boardBtn" aria-pressed="false" aria-label="Shared board"><i data-lucide="pen-tool" aria-hidden="true"></i><span class="tip">Board</span></button>
+          <button class="icon-btn" id="sideBtn" aria-pressed="false" aria-label="Chat and files"><i data-lucide="message-square" aria-hidden="true"></i><span class="tip">Chat</span></button>
+          <button class="icon-btn danger" id="hangupBtn"><i data-lucide="phone-off" aria-hidden="true"></i>End</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- sidebar -->
+    <aside class="side" id="side" aria-label="Chat and files">
+      <div class="side-tabs" role="tablist">
+        <button class="side-tab" data-tab="chat" role="tab" aria-selected="true">
+          <i data-lucide="message-square" aria-hidden="true"></i>Chat
+          <em class="unread" id="chatUnread" hidden>0</em>
+        </button>
+        <button class="side-tab" data-tab="files" role="tab" aria-selected="false">
+          <i data-lucide="folder" aria-hidden="true"></i>Files
+          <em class="unread" id="fileUnread" hidden>0</em>
+        </button>
+        <button class="side-close" id="sideClose" aria-label="Hide panel"><i data-lucide="x" aria-hidden="true"></i></button>
+      </div>
+
+      <div class="side-pane" data-pane="chat">
+        <div class="thread" id="thread" aria-live="polite">
+          <div class="thread-empty" id="threadEmpty">
+            <i data-lucide="lock" aria-hidden="true"></i>
+            <p>Messages ride the same encrypted peer connection as the call. They exist in this tab only — close it and they are gone.</p>
+          </div>
+        </div>
+        <form class="composer" id="composer">
+          <textarea id="chatInput" rows="1" placeholder="Message the room…" aria-label="Message" maxlength="2000"></textarea>
+          <button type="submit" class="composer-send" aria-label="Send">
+            <i data-lucide="arrow-up" aria-hidden="true"></i>
+          </button>
+        </form>
+      </div>
+
+      <div class="side-pane" data-pane="files" hidden>
+        <div class="drop" id="drop" tabindex="0" role="button">
+          <i data-lucide="upload" aria-hidden="true"></i>
+          <b>Drop a file</b>
+          <span>or click to browse · 64 MB max</span>
+        </div>
+        <input type="file" id="fileInput" multiple hidden>
+        <div class="transfers" id="transfers"></div>
+        <p class="side-note">Files travel peer-to-peer over the data channel. Nothing is uploaded, nothing is kept.</p>
+      </div>
+
+      <div class="side-foot">
+        <span class="fingerprints">
+          <span class="fp">you <b id="fpLocal">—</b></span>
+          <span class="fp">them <b id="fpRemote">—</b></span>
+          <span class="fp-match" id="fpMatch" data-ok="0">unverified</span>
+        </span>
+      </div>
+    </aside>
+  </div>
+
+  <!-- shared board -->
+  <section class="board" id="board" aria-hidden="true" aria-label="Shared board">
+    <header class="board-bar">
+      <div class="board-tools" role="toolbar" aria-label="Drawing tools">
+        <button class="tool" data-tool="pen" aria-pressed="true" aria-label="Pen"><i data-lucide="pen-tool" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="hl" aria-pressed="false" aria-label="Highlighter"><i data-lucide="highlighter" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="eraser" aria-pressed="false" aria-label="Eraser"><i data-lucide="eraser" aria-hidden="true"></i></button>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <button class="tool" data-tool="line" aria-pressed="false" aria-label="Line"><i data-lucide="minus" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="rect" aria-pressed="false" aria-label="Rectangle"><i data-lucide="square" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="ellipse" aria-pressed="false" aria-label="Ellipse"><i data-lucide="circle" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="arrow" aria-pressed="false" aria-label="Arrow"><i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+        <button class="tool" data-tool="text" aria-pressed="false" aria-label="Text"><i data-lucide="type" aria-hidden="true"></i></button>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <div class="swatches" id="swatches" role="group" aria-label="Colour">
+          <button class="swatch" data-color="#ede9df" style="--sw:#ede9df" aria-pressed="true" aria-label="Bone"></button>
+          <button class="swatch" data-color="#c8ff3d" style="--sw:#c8ff3d" aria-pressed="false" aria-label="Acid"></button>
+          <button class="swatch" data-color="#ff4d22" style="--sw:#ff4d22" aria-pressed="false" aria-label="Rust"></button>
+          <button class="swatch" data-color="#4fb8ff" style="--sw:#4fb8ff" aria-pressed="false" aria-label="Sky"></button>
+          <button class="swatch" data-color="#ffd166" style="--sw:#ffd166" aria-pressed="false" aria-label="Amber"></button>
+        </div>
+        <div class="widths" id="widths" role="group" aria-label="Stroke width">
+          <button class="width" data-w="2" aria-pressed="false" aria-label="Thin"><i style="height:2px"></i></button>
+          <button class="width" data-w="5" aria-pressed="true" aria-label="Medium"><i style="height:5px"></i></button>
+          <button class="width" data-w="11" aria-pressed="false" aria-label="Thick"><i style="height:11px"></i></button>
+        </div>
+      </div>
+      <div class="board-actions">
+        <button class="icon-btn sm" id="boardUndo" aria-label="Undo"><i data-lucide="undo-2" aria-hidden="true"></i><span class="tip">Undo</span></button>
+        <button class="icon-btn sm" id="boardRedo" aria-label="Redo"><i data-lucide="redo-2" aria-hidden="true"></i><span class="tip">Redo</span></button>
+        <button class="icon-btn sm" id="boardGrid" aria-pressed="true" aria-label="Toggle grid"><i data-lucide="grid-3x3" aria-hidden="true"></i><span class="tip">Grid</span></button>
+        <button class="icon-btn sm" id="boardExport" aria-label="Export PNG"><i data-lucide="image-down" aria-hidden="true"></i><span class="tip">PNG</span></button>
+        <button class="icon-btn sm" id="boardClear" aria-label="Clear board"><i data-lucide="trash-2" aria-hidden="true"></i><span class="tip">Clear</span></button>
+        <button class="icon-btn sm" id="boardClose" aria-label="Close board"><i data-lucide="chevron-down" aria-hidden="true"></i><span class="tip">Close</span></button>
+      </div>
+    </header>
+    <div class="board-stage" id="boardStage">
+      <canvas id="boardCanvas" width="1600" height="1000"></canvas>
+      <input id="boardText" class="board-text" hidden aria-label="Text on board" maxlength="90">
+      <div class="board-hint" id="boardHint">shared with the room · strokes appear on both screens</div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- settings -->
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="settingsTitle">Relay settings</h3>
+        <p>Point NullNode at your own Cloudflare Worker. Stored in this browser only.</p>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="Close" style="width:36px;height:36px"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <div class="field">
+      <label for="relayInput">Worker origin</label>
+      <input id="relayInput" type="url" placeholder="https://nullnode-relay.you.workers.dev" spellcheck="false">
+      <span class="sub" id="relayTestOut">Not tested. The relay only sees room keys and handshake text.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="testRelay">Test connection</button>
+      <button class="btn btn-ghost btn-sm" id="clearRelay">Clear</button>
+      <button class="btn btn-primary btn-sm" id="saveRelay">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- verify -->
+<div class="modal" id="verifyModal" role="dialog" aria-modal="true" aria-labelledby="verifyTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="verifyTitle">Verify the line</h3>
+        <p>Your fingerprint should be identical to the one shown as “them” on the other screen. Read yours out loud.</p>
+      </div>
+      <button class="icon-btn" data-close-modal aria-label="Close" style="width:36px;height:36px"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <div class="fp-block"><span>your certificate · SHA-256</span><code id="fpLocalFull">—</code></div>
+    <div class="fp-block"><span>their certificate · SHA-256</span><code id="fpRemoteFull">—</code></div>
+    <div class="fp-block"><span>selected path</span><code id="pathFull">not connected</code></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" data-close-modal>Close</button>
+      <button class="btn btn-primary btn-sm" id="markVerified">It matches</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.73.0/dist/umd/lucide.min.js"></script>
+<script src="assets/js/core.js"></script>
+<script src="assets/js/rtc.js"></script>
+<script src="assets/js/chat.js"></script>
+<script src="assets/js/board.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,13 +1,14 @@
 # NullNode
 
-**A room that never existed.** Anonymous 1:1 video over a single encrypted
-peer-to-peer channel — no accounts, no storage, no recording. The room is burned
-when you hang up.
+**A room that never existed.** Anonymous 1:1 video, text, files and a shared
+whiteboard over a single encrypted peer-to-peer channel — no accounts, no
+storage, no recording. The room is burned when you hang up.
 
-- Site: **https://imfufuu.github.io/nullnode/** (GitHub Pages, one file)
+- Site: **https://imfufuu.github.io/nullnode/** (GitHub Pages, static)
 - Relay: **Cloudflare Worker + one Durable Object** (no database, no media server)
-- Client: `index.html` — 126 kB, zero build step, zero runtime dependencies
-  beyond pinned CDN assets
+- Client: two pages — `index.html` (product) and `app.html` (the room) — plus
+  `assets/css/*` and `assets/js/*`. No build step, no bundler, no dependencies
+  beyond pinned CDN assets.
 
 ---
 
@@ -22,6 +23,7 @@ text and then forgets the room key.
 |---|---|
 | **Accounts** | none — there is nothing to sign up for |
 | **Media path** | peer → peer, DTLS-SRTP, mandatory in WebRTC |
+| **Extra channels** | chat, files (64 MB max, 16 kB frames) and the board ride the same data channel |
 | **Relay sees** | room key, IP addresses, SDP/ICE text (never parsed, never logged) |
 | **Relay keeps** | nothing; the Durable Object is deleted after the last peer |
 | **Recording** | impossible centrally; there is no central media to capture |
@@ -34,9 +36,9 @@ text and then forgets the room key.
 ```
    browser A                                            browser B
 ┌───────────────┐        ┌──────────────────────┐      ┌───────────────┐
-│  index.html   │  ws    │  Cloudflare Worker   │  ws  │  index.html   │
-│  ── cards ──  │◄──────►│  POST /rooms         │◄────►│  ── cards ──  │
-│  RTCPeerConn  │        │  GET  /rooms/:c/ws   │      │  RTCPeerConn  │
+│   app.html    │  ws    │  Cloudflare Worker   │  ws  │   app.html    │
+│  rtc + chat   │◄──────►│  POST /rooms         │◄────►│  rtc + chat   │
+│  + board      │        │  GET  /rooms/:c/ws   │      │  + board      │
 └───────┬───────┘        │  DELETE /rooms/:c    │      └───────┬───────┘
         │                │   └── Room (DO)      │              │
         │                │       · 2 sockets    │              │
@@ -69,15 +71,16 @@ cd nullnode
 ./scripts/dev.sh          # site on :8080, relay on :8787
 ```
 
-Open <http://localhost:8080/?relay=http://127.0.0.1:8787>, press **Create a
-room** in one window, paste the key into another window (or another machine on
-your LAN), and you are on a peer-to-peer call.
+Open <http://localhost:8080/>, press **Open a room**, then **Create a room** in
+one window and paste the six-character key into another window (or another
+machine on your network). The preview server rewrites the relay meta tag on the
+fly, so both pages point at `:8787` without touching anything on disk.
 
-Verify the relay without a browser:
+Verify without a browser:
 
 ```bash
-node scripts/smoke-test.mjs http://127.0.0.1:8787   # 19 checks
-node scripts/verify.mjs                             # static audit of index.html
+node scripts/smoke-test.mjs http://127.0.0.1:8787   # 19 relay checks
+node scripts/verify.mjs                             # static audit of the whole tree
 ```
 
 ---
@@ -86,8 +89,9 @@ node scripts/verify.mjs                             # static audit of index.html
 
 ### 1 · The site → GitHub Pages
 
-The repository ships `.github/workflows/pages.yml`, which audits `index.html`
-and publishes it as a Pages artefact on every push to `main` or `arena/**`.
+The repository ships `.github/workflows/pages.yml`, which audits the tree with
+`scripts/verify.mjs` and publishes `index.html`, `app.html` and `assets/` as a
+Pages artefact on every push to `main`.
 
 One-time, in the browser: **Settings → Pages → Source: GitHub Actions**.
 Nothing else to configure — no build command, no output folder, no `gh-pages`
@@ -110,7 +114,7 @@ export it, then:
 ```bash
 export CLOUDFLARE_API_TOKEN="v1.0-…"
 export CLOUDFLARE_ACCOUNT_ID="0123456789abcdef0123456789abcdef"
-./scripts/deploy-worker.sh --wire   # deploy, verify /health, write url into index.html
+./scripts/deploy-worker.sh --wire   # deploy, verify /health, write the url into both pages
 git push                            # redeploy the page with the relay baked in
 ```
 
@@ -147,7 +151,18 @@ Modes:
 ## Repository map
 
 ```
-index.html                 the entire site + call engine (single file)
+index.html                 product page — story, protocol, relay, faq
+app.html                   the room — video, chat, files, board, modals
+assets/
+  css/base.css             tokens, reset, nav, buttons, modals, page curtain
+  css/landing.css          hero, marquee, protocol, relay, faq, footer
+  css/app.css              room shell, stage, deck, sidebar, board
+  js/core.js               namespace, icons + fallbacks, toast, modals, curtain
+  js/landing.js            preloader, reveals, cursor, parallax, signal canvas
+  js/rtc.js                media, signalling, data channel, telemetry
+  js/chat.js               chat thread + chunked file transfer
+  js/board.js              vector whiteboard, undo/redo, PNG export
+  js/app.js                room wiring, state machine, shortcuts
 worker/
   src/index.js             Worker entry + Room Durable Object
   wrangler.toml            bindings, migration, vars
@@ -157,7 +172,7 @@ scripts/
   deploy-pages.sh          GitHub Pages: audit → push → enable → dispatch
   dev.sh                   local site + relay
   smoke-test.mjs           19-check end-to-end signalling test
-  verify.mjs               static audit (syntax, ids, entities, emoji, meta)
+  verify.mjs               static audit (scripts, ids, icons, assets, meta, css)
 docs/CREDENTIALS.md        every credential, scope, and error message
 .github/workflows/         pages.yml · relay.yml
 deploy.env.example         template for local secrets
@@ -190,8 +205,32 @@ deploy.env.example         template for local secrets
 - **Symmetric NAT / locked-down firewalls can block media.** NullNode ships STUN
   only. Adding TURN means adding a server that sees your media — which is exactly
   what this project refuses to do. Deploy your own TURN if you need it.
+
+### Does it work across different networks?
+
+Different LANs, different countries: usually yes, and it is the same mechanism
+that makes a LAN call work.
+
+- **Signalling is always possible.** The relay is an ordinary HTTPS/WebSocket
+  service on Cloudflare's edge, so two browsers anywhere can exchange offers.
+  The six-character key resolves across the internet exactly as it does at home.
+- **Media needs ICE to find a path.** Both peers gather candidates from public
+  STUN servers, which reveal each side's public NAT mapping. For most home
+  routers (full-cone / restricted / port-restricted NAT) hole punching succeeds
+  and media flows directly. `path` in the room badge tells you what won: a
+  `host → host` pair is a same-LAN connection, `srflx → srflx` is a punched
+  path across the internet.
+- **Where it fails.** Symmetric NAT (common on mobile carriers and some
+  corporate networks) assigns a different port per destination, so the mapping
+  discovered through STUN is not the one the peer needs. Two symmetric NATs
+  cannot be punched; the connection needs a TURN server relaying the media.
+  NullNode does not ship TURN on purpose — a TURN server sees every packet.
+  If you need it, put your own coturn next to the Worker and add it to the ICE
+  list in `assets/js/rtc.js`.
+- **Airgap is not a NAT fix.** It removes the relay from the handshake; it
+  cannot invent a route that the network refuses to carry.
 - **Third-party requests on the page**: Google Fonts and jsDelivr (GSAP, Lenis,
-  Lucide, Tailwind). They never see your media. Self-host them to remove them.
+  Lucide). They never see your media. Self-host them to remove them.
 - **A public relay is rate limited per isolate**, not per account. Put a
   Cloudflare WAF rate-limit rule in front of `/rooms` for a hardened deploy.
 
