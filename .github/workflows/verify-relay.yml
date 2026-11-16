@@ -64,6 +64,23 @@ jobs:
           curl -fsS --max-time 15 "$URL/health" | tee health.json
           node -e "const h=require('./health.json'); if(!h.ok) process.exit(1); console.log('version', h.version, '· peers/room', h.peerLimit, '· ttl', h.ttlSeconds+'s')"
 
+      - name: CORS preflight (what a browser does before POST /rooms)
+        if: steps.url.outputs.found == 'true'
+        env:
+          URL: ${{ steps.url.outputs.url }}
+        run: |
+          origin='https://imfufuu.github.io'
+          allowed=$(curl -s -o /dev/null -D - -X OPTIONS "$URL/rooms" \
+            -H "Origin: $origin" \
+            -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: content-type" | tr -d '\r' \
+            | grep -i '^access-control-allow-origin:' | cut -d' ' -f2)
+          echo "preflight allow-origin: ${allowed:-none}"
+          [ -n "$allowed" ] || { echo "::error::the relay returns no access-control-allow-origin for $origin — browsers would silently fall back to airgap"; exit 1; }
+          body=$(curl -s -X POST "$URL/rooms" -H "Origin: $origin" -H 'content-type: application/json' -d '{}')
+          echo "$body"
+          echo "$body" | grep -q '"code"' || { echo "::error::POST /rooms did not mint a room key"; exit 1; }
+
       - name: Signalling smoke test (19 checks)
         if: steps.url.outputs.found == 'true'
         env:

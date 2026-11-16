@@ -179,6 +179,7 @@ body.cursor-copy .cursor-dot{opacity:0}
 .btn-ghost:hover{border-color:rgba(237,233,223,.4);background:rgba(237,233,223,.04)}
 .btn-sm{height:38px;padding:0 16px;font-size:10px}
 .btn[disabled]{opacity:.4;pointer-events:none}
+.btn[hidden]{display:none}
 .icon-btn{position:relative;display:inline-grid;place-items:center;width:50px;height:50px;border-radius:50%;
   border:1px solid var(--line);color:var(--bone);transition:transform .35s var(--ease-spring),background .3s,border-color .3s,color .3s}
 .icon-btn svg{width:19px;height:19px}
@@ -847,6 +848,9 @@ table.relay tr:hover td{background:rgba(237,233,223,.02)}
             <button class="btn btn-primary btn-sm" id="airgapConnect">Connect</button>
             <button class="btn btn-ghost btn-sm" id="airgapReset">Reset</button>
             <button class="btn btn-ghost btn-sm" id="airgapClose">Close</button>
+            <button class="btn btn-primary btn-sm" id="airgapUseRelay" hidden>
+              <i data-lucide="radio" aria-hidden="true"></i>Use the relay instead
+            </button>
           </div>
         </div>
 
@@ -1672,7 +1676,7 @@ cd nullnode
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var toast = function (m) { window.nnToast(m); };
 
-  var RELAY_KEY = 'nn.relay', MODE_KEY = 'nn.mode';
+  var RELAY_KEY = 'nn.relay', MODE_KEY = 'nn.mode.v2';
   var DEFAULT_RELAY = (document.querySelector('meta[name="nullnode-relay"]') || {}).content || '';
   var ICE = {
     iceServers: [
@@ -1691,6 +1695,7 @@ cd nullnode
     fpLocalFull: $('#fpLocalFull'), fpRemoteFull: $('#fpRemoteFull'),
     airgapOut: $('#airgapOut'), airgapIn: $('#airgapIn'), airgapOutLabel: $('#airgapOutLabel'),
     airgapLead: $('#airgapLead'), airgapConnect: $('#airgapConnect'),
+    airgapUseRelay: $('#airgapUseRelay'),
     relayChip: $('#relayChip'), relayChipText: $('#relayChipText'), relayFoot: $('#relayFoot'),
     modeRelay: $('#modeRelay'), modeAirgap: $('#modeAirgap'), modeHint: $('#modeHint'),
     specPeers: $('#specPeers'), specState: $('#specState'),
@@ -1759,19 +1764,21 @@ cd nullnode
     return normalizeRelay(saved) || normalizeRelay(DEFAULT_RELAY);
   }
 
-  function setMode(m, silent) {
+  function setMode(m, silent, persist) {
     if (m === 'relay' && !S.relay) {
       if (!silent) { toast('Add a relay url first'); openSettings(); }
       return;
     }
     S.mode = m;
-    try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+    if (persist) { try { localStorage.setItem(MODE_KEY, m); } catch (e) {} }
     if (el.modeRelay) el.modeRelay.setAttribute('aria-pressed', String(m === 'relay'));
     if (el.modeAirgap) el.modeAirgap.setAttribute('aria-pressed', String(m === 'airgap'));
     if (el.modeHint) {
       el.modeHint.textContent = m === 'relay'
         ? 'relay — handshake forwarded by a worker you control'
-        : 'airgap — handshake copied by hand, no server involved';
+        : (S.relay
+            ? 'airgap — manual handshake · the relay is available if you click Relay'
+            : 'airgap — handshake copied by hand, no server involved');
     }
   }
 
@@ -1782,6 +1789,7 @@ cd nullnode
     if (el.relayChipText) el.relayChipText.textContent = text;
     if (el.relayFoot) el.relayFoot.textContent = 'relay: ' + (S.relay ? (status === 'live' ? 'online' : status === 'off' ? 'unreachable' : 'configured') : 'unset');
     if (el.modeRelay) el.modeRelay.title = S.relay ? S.relay : 'No relay configured — click to add one';
+    refreshAirgapRelayBtn();
     var out = $('#relayTestOut');
     if (out && status) {
       out.textContent = status === 'live' ? 'Reachable. Room keys will route through this worker.'
@@ -1803,7 +1811,10 @@ cd nullnode
 
   S.relay = loadRelay();
   var savedMode = '';
-  try { savedMode = localStorage.getItem(MODE_KEY) || ''; } catch (e) {}
+  try {
+    savedMode = localStorage.getItem(MODE_KEY) || '';
+    localStorage.removeItem('nn.mode'); // pre-v2 builds wrote here implicitly
+  } catch (e) {}
   // A configured relay is the default path; airgap becomes the deliberate opt-out.
   setMode(S.relay && savedMode !== 'airgap' ? 'relay' : 'airgap', true);
   paintRelay('unknown');
@@ -2229,8 +2240,15 @@ cd nullnode
   }
 
   /* ---------- airgap ---------- */
+  function refreshAirgapRelayBtn() {
+    if (!el.airgapUseRelay) return;
+    var show = !!S.relay && S.health !== 'off';
+    el.airgapUseRelay.hidden = !show;
+  }
+
   function airgapBegin(role) {
     S.airgapStage = role;
+    refreshAirgapRelayBtn();
     setState('airgap', { title: role === 'host' ? 'Offering' : 'Answering', sub: 'no server involved' });
     if (el.airgapOut) el.airgapOut.value = '';
     if (el.airgapIn) { el.airgapIn.value = ''; el.airgapIn.readOnly = false; }
@@ -2406,6 +2424,11 @@ cd nullnode
   $('#airgapFromInvite').addEventListener('click', function () { airgapBegin('host'); });
   $('#airgapConnect').addEventListener('click', airgapAction);
   $('#airgapClose').addEventListener('click', function () { hangup(false); });
+  if (el.airgapUseRelay) el.airgapUseRelay.addEventListener('click', function () {
+    setMode('relay', false, true);
+    hangup(false);
+    createRoom();
+  });
   $('#airgapReset').addEventListener('click', function () {
     closePeer();
     var role = S.airgapStage || 'host';
@@ -2426,9 +2449,9 @@ cd nullnode
   /* ---------- mode pills ---------- */
   if (el.modeRelay) el.modeRelay.addEventListener('click', function () {
     if (!S.relay) { openSettings(); toast('Add a relay url first'); return; }
-    setMode('relay');
+    setMode('relay', false, true);
   });
-  if (el.modeAirgap) el.modeAirgap.addEventListener('click', function () { setMode('airgap'); });
+  if (el.modeAirgap) el.modeAirgap.addEventListener('click', function () { setMode('airgap', false, true); });
 
   /* ---------- settings ---------- */
   function openSettings() {
