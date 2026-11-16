@@ -1804,7 +1804,8 @@ cd nullnode
   S.relay = loadRelay();
   var savedMode = '';
   try { savedMode = localStorage.getItem(MODE_KEY) || ''; } catch (e) {}
-  setMode(savedMode === 'relay' && S.relay ? 'relay' : 'airgap', true);
+  // A configured relay is the default path; airgap becomes the deliberate opt-out.
+  setMode(S.relay && savedMode !== 'airgap' ? 'relay' : 'airgap', true);
   paintRelay('unknown');
   if (S.relay) checkRelay();
   var relayInput = $('#relayInput');
