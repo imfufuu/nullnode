@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NullNode — anonymous peer-to-peer video, chat, files and a shared board</title>
+<title>NullNode — a field manual for a room that never existed</title>
 <meta name="description" content="NullNode is one encrypted peer-to-peer room for two people: video, text, file transfer and a shared whiteboard. No accounts, no storage, no recording — the room is burned when the call ends.">
-<meta name="theme-color" content="#08090a">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="color-scheme" content="dark light">
 <script>document.documentElement.classList.remove("no-js");document.documentElement.classList.add("js");</script>
 <script>try{if(sessionStorage.getItem("nn.nav")==="1"){document.documentElement.className+=" nav-arrive";}}catch(e){}</script>
 <link rel="canonical" href="https://imfufuu.github.io/nullnode/">
@@ -17,17 +17,16 @@
 <meta property="og:site_name" content="NullNode">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="nullnode-relay" content="https://nullnode.dubhe-agent.workers.dev">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090a'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='none' stroke='%23c8ff3d' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23c8ff3d'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='5.5' fill='none' stroke='%23c8ff3d' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23c8ff3d'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&amp;family=Instrument+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@300;400;500&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/base.css">
 <link rel="stylesheet" href="assets/css/landing.css">
 </head>
 <body id="top">
 
 <div class="wipe" aria-hidden="true"><b>null<em>node</em></b></div>
-
 
 <div class="grain" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
@@ -39,30 +38,33 @@
   <div class="boot-inner">
     <div class="boot-row">
       <div class="boot-mark">null<em>node</em></div>
-      <div class="boot-count"><span id="bootNum">000</span>%</div>
+      <div class="boot-count"><span id="bootNum">000</span><span class="boot-pct">%</span></div>
     </div>
     <div class="boot-line"><i id="bootBar"></i></div>
     <div class="boot-log" id="bootLog">
-      <p data-at="0">initialising <b>local session</b></p>
-      <p data-at="1">no accounts · no storage · no trace</p>
-      <p data-at="2">channel: <b>peer-to-peer</b></p>
+      <p data-at="0">setting type <b>fraunces · instrument · jetbrains</b></p>
+      <p data-at="1">inking the hairlines · no storage · no accounts</p>
+      <p data-at="2">channel: <b>peer-to-peer</b> · dtls-srtp mandatory</p>
       <p data-at="3">ready <b>— hand nothing over</b></p>
     </div>
   </div>
 </div>
 
-<!-- nav -->
+<!-- masthead -->
 <header class="nav" id="nav">
   <div class="nav-in">
     <a href="index.html" class="brand" aria-label="NullNode home">
       <i class="node" aria-hidden="true"></i>
       <b>NULL</b><span class="slash">/</span><b>NODE</b>
     </a>
+    <div class="nav-issue mono" aria-hidden="true">
+      <span>Issue 001</span><span class="dot"></span><span>MMXXVI</span>
+    </div>
     <nav class="nav-links" aria-label="Primary">
-      <a class="nav-link" href="#capabilities"><i>Capabilities</i><i aria-hidden="true">Capabilities</i></a>
-      <a class="nav-link" href="#protocol"><i>Protocol</i><i aria-hidden="true">Protocol</i></a>
-      <a class="nav-link" href="#relay"><i>Relay</i><i aria-hidden="true">Relay</i></a>
-      <a class="nav-link" href="#faq"><i>Questions</i><i aria-hidden="true">Questions</i></a>
+      <a class="nav-link" href="#capabilities"><em>01</em><i>Capabilities</i><i aria-hidden="true">Capabilities</i></a>
+      <a class="nav-link" href="#protocol"><em>02</em><i>Protocol</i><i aria-hidden="true">Protocol</i></a>
+      <a class="nav-link" href="#relay"><em>03</em><i>Relay</i><i aria-hidden="true">Relay</i></a>
+      <a class="nav-link" href="#faq"><em>04</em><i>Questions</i><i aria-hidden="true">Questions</i></a>
     </nav>
     <div class="nav-right">
       <a class="btn btn-primary btn-sm" href="app.html">
@@ -70,31 +72,41 @@
       </a>
     </div>
   </div>
+  <div class="nav-progress" id="navProgress" aria-hidden="true"><i></i></div>
 </header>
 
 <main>
-<!-- hero -->
+<!-- ============================================================
+     001 — HERO
+     ============================================================ -->
 <section class="hero" aria-labelledby="heroTitle">
   <div class="hero-ghost" aria-hidden="true">NULL</div>
   <div class="shell">
+
+    <div class="runhead hero-runhead reveal">
+      <span class="folio">001</span>
+      <span class="runhead-txt">A field manual for a room that never existed</span>
+      <span class="runhead-meta">No accounts · No storage</span>
+    </div>
+
     <div class="hero-grid">
-      <div>
-        <div class="hero-eyebrow">
-          <span class="idx">001</span>
+      <div class="hero-main">
+        <div class="hero-kicker">
+          <span class="mono acid">Anonymous 1:1</span>
           <span class="bar" aria-hidden="true"></span>
-          <span class="mono dim">Anonymous 1:1 video</span>
+          <span class="mono dim">peer-to-peer · no intermediary</span>
         </div>
 
         <h1 class="hero-title mask-lines" id="heroTitle">
           <span class="ln"><span class="split-chars">A room</span></span>
-          <span class="ln indent"><span>that <em class="it accent">never</em></span></span>
-          <span class="ln"><span>existed<span class="accent">.</span></span></span>
+          <span class="ln indent"><span>that <em class="it">never</em></span></span>
+          <span class="ln"><span>existed<sup class="fn"><a href="#note-1" id="ref-1">1</a></sup><span class="accent">.</span></span></span>
         </h1>
 
         <p class="hero-sub">
-          Two faces, one direct line — with text, files and a shared board on the
-          same encrypted channel. NullNode opens it, then closes it forever when
-          you hang up. <strong>No account, no cloud copy, no recording.</strong>
+          Two faces on one direct line — with text, files and a shared board
+          riding the same encrypted channel. NullNode opens it, then closes it
+          forever when you hang up. <strong>No account, no cloud copy, no recording.</strong>
         </p>
 
         <div class="hero-actions">
@@ -113,89 +125,139 @@
         </p>
       </div>
 
-      <aside class="spec reveal" aria-label="Session telemetry">
-        <div class="badge-spin" aria-hidden="true">
+      <aside class="plate reveal" aria-label="Session telemetry">
+        <div class="plate-frame">
+          <div class="plate-head">
+            <span class="mono">Fig. 01</span>
+            <span class="mono dim">the line, live</span>
+          </div>
+          <canvas id="signal" width="600" height="132" aria-label="Live connection diagram"></canvas>
+          <div class="plate-foot">
+            <span>you <b>host</b></span>
+            <span>peer <b>guest</b></span>
+          </div>
+          <div class="seal" aria-hidden="true">
             <svg viewBox="0 0 100 100">
               <defs><path id="circlePath" d="M50,50 m-38,0 a38,38 0 1,1 76,0 a38,38 0 1,1 -76,0"></path></defs>
               <text><textPath href="#circlePath" startOffset="0">NULLNODE · PEER TO PEER · NO TRACE · </textPath></text>
             </svg>
           </div>
-          <div class="spec-card">
-          <div class="spec-head">
-            <span class="mono dim">signal</span>
-            <span class="dotset" aria-hidden="true"><i></i><i></i><i></i></span>
-          </div>
-          <canvas id="signal" width="600" height="132" aria-label="Live connection diagram"></canvas>
-          <div class="spec-foot">
-            <span>peers <b id="specPeers">0</b>/2</span>
-            <span>state <b id="specState">idle</b></span>
-          </div>
         </div>
-        <div class="spec-card" style="padding:14px 18px">
-          <div class="spec-foot" style="margin:0">
-            <span>transport</span>
-            <span><b>DTLS–SRTP</b> · mandatory</span>
-          </div>
-        </div>
+        <p class="caption">
+          Fig. 01 — Two browsers, one handshake, nothing in the middle.
+        </p>
+        <dl class="spec-list">
+          <div><dt>peers</dt><dd id="specPeers">0 / 2</dd></div>
+          <div><dt>state</dt><dd id="specState">idle</dd></div>
+          <div><dt>transport</dt><dd>DTLS–SRTP</dd></div>
+        </dl>
       </aside>
     </div>
 
-    <div class="stats reveal">
-      <div class="stat"><b>00</b><span>accounts<br>nothing to sign up for</span></div>
-      <div class="stat"><b>≈2s</b><span>to a room<br>from a cold open</span></div>
-      <div class="stat"><b>0 B</b><span>stored<br>media never leaves peers</span></div>
+    <div class="ledger reveal">
+      <div class="ledger-item">
+        <b>00</b><span>accounts</span><em>nothing to sign up for</em>
+      </div>
+      <div class="ledger-item">
+        <b>≈2<span class="unit">s</span></b><span>to a room</span><em>from a cold open</em>
+      </div>
+      <div class="ledger-item">
+        <b>0<span class="unit">B</span></b><span>stored</span><em>media never leaves peers</em>
+      </div>
+      <div class="ledger-item">
+        <b>2</b><span>peers</span><em>a third is refused</em>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- marquee -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
+<!-- ticker -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
     <span>No accounts <i></i> No logs <i></i> No recording <i></i> Peer-to-peer only <i></i> Room burns on hangup <i></i> End-to-end encrypted <i></i> Open source <i></i></span>
     <span>No accounts <i></i> No logs <i></i> No recording <i></i> Peer-to-peer only <i></i> Room burns on hangup <i></i> End-to-end encrypted <i></i> Open source <i></i></span>
   </div>
 </div>
 
-
-<!-- CAPABILITIES -->
-<section class="section" id="capabilities" aria-labelledby="capTitle">
+<!-- ============================================================
+     002 — CAPABILITIES (paper)
+     ============================================================ -->
+<section class="section stock-paper" id="capabilities" aria-labelledby="capTitle">
   <div class="shell">
+    <div class="runhead reveal">
+      <span class="folio">002</span>
+      <span class="runhead-txt">Capabilities</span>
+      <span class="runhead-meta">p. 02</span>
+    </div>
+
     <div class="sec-head reveal">
       <div>
-        <div class="sec-num"><b>002</b><span class="bar" aria-hidden="true"></span>capabilities</div>
-        <h2 class="sec-title" id="capTitle">A room with<br><em>more than a face.</em></h2>
+        <h2 class="sec-title" id="capTitle">More than<br><em>a face.</em></h2>
       </div>
-      <div>
-        <p class="sec-copy">
+      <div class="sec-stand">
+        <p class="standfirst">
           Video is the beginning of a conversation, not the whole of one. Inside
           the same encrypted channel you get text, files and a shared board — all
           of it peer-to-peer, none of it stored.
         </p>
+        <p class="sec-meta mono">Three channels · one peer connection</p>
       </div>
     </div>
 
-    <div class="caps reveal">
-      <article class="cap">
-        <div class="cap-top"><span class="mono dim">01</span><i data-lucide="video" aria-hidden="true"></i></div>
+    <div class="entries">
+      <article class="entry reveal">
+        <div class="entry-top"><span class="entry-no">01</span><span class="mono dim">Fig. 02</span></div>
         <h3>Talk</h3>
-        <p>Direct audio and video over DTLS-SRTP, with live bitrate, resolution and round-trip telemetry, screen share and a certificate fingerprint you can read aloud.</p>
-        <div class="cap-foot"><span>media path</span><b>peer → peer</b></div>
+        <p class="entry-copy">
+          Direct audio and video over DTLS-SRTP, with live bitrate, resolution and
+          round-trip telemetry, screen share, and a certificate fingerprint you can
+          read aloud to the other person.
+        </p>
+        <div class="entry-meta"><span>media path</span><b>peer → peer</b></div>
+        <svg class="entry-art" viewBox="0 0 132 78" fill="none" aria-hidden="true">
+          <circle cx="20" cy="39" r="11" stroke="currentColor" stroke-width="1"/>
+          <circle cx="112" cy="39" r="11" stroke="currentColor" stroke-width="1"/>
+          <path d="M31 39h70" stroke="currentColor" stroke-width="1" stroke-dasharray="2 6"/>
+          <path d="M20 28v-9M20 50v9M112 28v-9M112 50v9" stroke="currentColor" stroke-width="1"/>
+          <circle cx="66" cy="39" r="2" fill="currentColor"/>
+        </svg>
       </article>
-      <article class="cap">
-        <div class="cap-top"><span class="mono dim">02</span><i data-lucide="messages-square" aria-hidden="true"></i></div>
+
+      <article class="entry reveal">
+        <div class="entry-top"><span class="entry-no">02</span><span class="mono dim">Fig. 03</span></div>
         <h3>Type, send, hand over</h3>
-        <p>A text line and a file channel that ride the same data channel. Drop a file, watch the progress, take it on the other side — up to 64 MB per file, never uploaded anywhere.</p>
-        <div class="cap-foot"><span>storage</span><b>0 bytes</b></div>
+        <p class="entry-copy">
+          A text line and a file channel on the same data channel. Drop a file,
+          watch the progress, take it on the other side — up to 64 MB per file,
+          never uploaded anywhere.
+        </p>
+        <div class="entry-meta"><span>storage</span><b>0 bytes</b></div>
+        <svg class="entry-art" viewBox="0 0 132 78" fill="none" aria-hidden="true">
+          <rect x="30" y="12" width="52" height="38" rx="2" stroke="currentColor" stroke-width="1"/>
+          <rect x="44" y="24" width="52" height="38" rx="2" stroke="currentColor" stroke-width="1"/>
+          <path d="M56 36h28M56 44h20" stroke="currentColor" stroke-width="1"/>
+          <path d="M96 16h14M96 22h9" stroke="currentColor" stroke-width="1"/>
+        </svg>
       </article>
-      <article class="cap">
-        <div class="cap-top"><span class="mono dim">03</span><i data-lucide="pen-tool" aria-hidden="true"></i></div>
+
+      <article class="entry reveal">
+        <div class="entry-top"><span class="entry-no">03</span><span class="mono dim">Fig. 04</span></div>
         <h3>Draw on the same page</h3>
-        <p>Pen, highlighter, eraser, lines, rectangles, ellipses, arrows and text on a shared canvas. Strokes land on both screens as you draw, and the board exports to PNG.</p>
-        <div class="cap-foot"><span>sync</span><b>realtime</b></div>
+        <p class="entry-copy">
+          Pen, highlighter, eraser, lines, rectangles, ellipses, arrows and text on
+          a shared canvas. Strokes land on both screens as you draw, and the board
+          exports to PNG.
+        </p>
+        <div class="entry-meta"><span>sync</span><b>realtime</b></div>
+        <svg class="entry-art" viewBox="0 0 132 78" fill="none" aria-hidden="true">
+          <path d="M18 54c14 0 12-30 26-30s10 30 24 30 12-30 26-30 8 20 20 20" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="18" cy="54" r="2.4" fill="currentColor"/>
+          <circle cx="114" cy="44" r="2.4" fill="currentColor"/>
+        </svg>
       </article>
     </div>
 
-    <div class="caps-note reveal">
+    <div class="entries-note reveal">
       <span class="mono dim">All three channels share one peer connection.</span>
       <a class="btn btn-ghost btn-sm" href="app.html">
         <i data-lucide="radio" aria-hidden="true"></i>Open a room
@@ -203,120 +265,177 @@
     </div>
   </div>
 </section>
-<!-- PROTOCOL -->
-<section class="section" id="protocol" aria-labelledby="protoTitle">
+
+<!-- ============================================================
+     003 — PROTOCOL
+     ============================================================ -->
+<section class="section protocol" id="protocol" aria-labelledby="protoTitle">
   <div class="shell">
+    <div class="runhead reveal">
+      <span class="folio">003</span>
+      <span class="runhead-txt">Protocol</span>
+      <span class="runhead-meta">p. 03</span>
+    </div>
+
     <div class="sec-head reveal">
       <div>
-        <div class="sec-num"><b>003</b><span class="bar" aria-hidden="true"></span>protocol</div>
         <h2 class="sec-title" id="protoTitle">Three moves.<br><em>Nothing kept.</em></h2>
       </div>
-      <div>
-        <p class="sec-copy">
+      <div class="sec-stand">
+        <p class="standfirst">
           NullNode speaks exactly one dialect: the browser's own WebRTC. There is
-          no media server to trust because there is no media server. The only
-          piece of infrastructure is a relay that forwards a handshake and then
-          forgets it.
+          no media server to trust because there is no media server.
+        </p>
+        <p class="sec-meta mono">
+          <a class="inline-link" href="#relay">The one piece of infrastructure <span aria-hidden="true">→</span></a>
         </p>
       </div>
     </div>
+  </div>
 
-    <div class="steps reveal">
-      <article class="step">
-        <div class="step-n"><b>01</b><span class="bar" aria-hidden="true"></span>create</div>
-        <div class="step-ico"><i data-lucide="key-round" aria-hidden="true"></i></div>
-        <h3>A key, not an account.</h3>
-        <p>
-          Your browser generates a six-character room key — 32<sup>6</sup>
-          combinations. Nothing is registered anywhere. The key is only an address
-          the relay will answer for the next two connections.
-        </p>
-        <div class="step-foot"><span>relay sees</span><span class="acid">the key</span></div>
-      </article>
+  <div class="rail" id="rail">
+    <div class="rail-track" id="railTrack">
+      <div class="steps" id="railSteps">
 
-      <article class="step">
-        <div class="step-n"><b>02</b><span class="bar" aria-hidden="true"></span>handshake</div>
-        <div class="step-ico"><i data-lucide="git-compare-arrows" aria-hidden="true"></i></div>
-        <h3>Two browsers find each other.</h3>
-        <p>
-          Session descriptions and ICE candidates travel as opaque text — a few
-          kilobytes, held in memory for seconds. Then the peers negotiate
-          <code>DTLS-SRTP</code> directly. The relay's job is over before you speak.
-        </p>
-        <div class="step-foot"><span>media path</span><span class="acid">peer → peer</span></div>
-      </article>
+        <article class="step">
+          <div class="step-head">
+            <span class="step-no">01</span>
+            <span class="step-kicker mono">create</span>
+          </div>
+          <div class="step-icon"><i data-lucide="key-round" aria-hidden="true"></i></div>
+          <h3>A key, not an account.</h3>
+          <p>
+            Your browser generates a six-character room key — 32<sup>6</sup>
+            combinations. Nothing is registered anywhere. The key is only an
+            address the relay will answer for the next two connections.
+          </p>
+          <div class="step-foot"><span>relay sees</span><b class="acid">the key</b></div>
+        </article>
 
-      <article class="step">
-        <div class="step-n"><b>03</b><span class="bar" aria-hidden="true"></span>burn</div>
-        <div class="step-ico"><i data-lucide="flame" aria-hidden="true"></i></div>
-        <h3>The key stops existing.</h3>
-        <p>
-          Hanging up closes the peer connection, stops every track and deletes the
-          room key from relay memory. There is no archive to leak, subpoena or sell
-          — the conversation only ever existed on two devices.
-        </p>
-        <div class="step-foot"><span>retention</span><span class="acid">until hangup</span></div>
-      </article>
+        <article class="step">
+          <div class="step-head">
+            <span class="step-no">02</span>
+            <span class="step-kicker mono">handshake</span>
+          </div>
+          <div class="step-icon"><i data-lucide="git-compare-arrows" aria-hidden="true"></i></div>
+          <h3>Two browsers find each other.</h3>
+          <p>
+            Session descriptions and ICE candidates travel as opaque text — a few
+            kilobytes, held in memory for seconds. Then the peers negotiate
+            DTLS-SRTP directly. The relay's job is over before you speak.
+          </p>
+          <div class="step-foot"><span>media path</span><b class="acid">peer → peer</b></div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="step-no">03</span>
+            <span class="step-kicker mono">burn</span>
+          </div>
+          <div class="step-icon"><i data-lucide="flame" aria-hidden="true"></i></div>
+          <h3>The key stops existing.</h3>
+          <p>
+            Hanging up closes the peer connection, stops every track and deletes
+            the room key from relay memory. There is no archive to leak, subpoena
+            or sell — the conversation only ever existed on two devices.
+          </p>
+          <div class="step-foot"><span>retention</span><b class="acid">until hangup</b></div>
+        </article>
+
+      </div>
+    </div>
+    <div class="rail-legend shell" aria-hidden="true">
+      <span id="railDots" class="rail-dots"><i class="on">01</i><i>02</i><i>03</i></span>
+      <span class="mono dim">scroll the strip <span class="rail-arrow">→</span></span>
     </div>
   </div>
 </section>
 
-<!-- RELAY / TRUST -->
-<section class="section" id="relay" aria-labelledby="relayTitle">
+<!-- ============================================================
+     INTERLUDE
+     ============================================================ -->
+<section class="statement" aria-label="Interlude">
   <div class="shell">
+    <div class="runhead reveal">
+      <span class="folio">004</span>
+      <span class="runhead-txt">Interlude</span>
+      <span class="runhead-meta">no storage</span>
+    </div>
+    <p class="statement-line reveal">
+      The conversation only ever <em>exists</em> on two devices.<sup class="fn"><a href="#note-3" id="ref-3">3</a></sup>
+    </p>
+    <p class="statement-by reveal mono">— the only guarantee this page can actually make</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     005 — RELAY / SURFACE AREA (paper)
+     ============================================================ -->
+<section class="section stock-paper" id="relay" aria-labelledby="relayTitle">
+  <div class="shell">
+    <div class="runhead reveal">
+      <span class="folio">005</span>
+      <span class="runhead-txt">Surface area</span>
+      <span class="runhead-meta">p. 05</span>
+    </div>
+
     <div class="sec-head reveal">
       <div>
-        <div class="sec-num"><b>004</b><span class="bar" aria-hidden="true"></span>surface area</div>
         <h2 class="sec-title" id="relayTitle">What the relay<br><em>can see.</em></h2>
       </div>
-      <div>
-        <p class="sec-copy">
+      <div class="sec-stand">
+        <p class="standfirst">
           We would rather show you the exact surface than promise you magic. Any
           relay has to route a handshake — here is everything that passes through
           ours, in plain language, with no asterisks.
         </p>
-        <p class="sec-copy dim" style="font-size:12.5px">
+        <p class="sec-note">
           Airgap mode removes even this: two people exchange one text blob out of
           band and the relay is never contacted.
         </p>
       </div>
     </div>
 
-    <div class="table-wrap reveal">
-      <table class="relay">
+    <div class="ledger-wrap reveal">
+      <table class="ledger-table">
+        <caption class="sr-only">What the relay can and cannot see</caption>
         <thead>
-          <tr><th scope="col">Data</th><th scope="col">Relay visibility</th><th scope="col">Lifetime</th></tr>
+          <tr>
+            <th scope="col">Data</th>
+            <th scope="col">Relay visibility</th>
+            <th scope="col">Lifetime<sup class="fn"><a href="#note-2" id="ref-2">2</a></sup></th>
+          </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Room key</td>
-            <td><span class="tag yes">visible</span> — it is the address we route</td>
-            <td>Deleted on hangup, or after the idle TTL</td>
+            <td data-th="Data">Room key</td>
+            <td data-th="Relay visibility"><span class="flag flag-yes">visible</span> it is the address we route</td>
+            <td data-th="Lifetime">Deleted on hangup, or after the idle TTL</td>
           </tr>
           <tr>
-            <td>IP addresses</td>
-            <td><span class="tag yes">visible</span> — transport level; unavoidable for any internet call</td>
-            <td>Discarded with the room, never written to disk</td>
+            <td data-th="Data">IP addresses</td>
+            <td data-th="Relay visibility"><span class="flag flag-yes">visible</span> transport level; unavoidable for any internet call</td>
+            <td data-th="Lifetime">Discarded with the room, never written to disk</td>
           </tr>
           <tr>
-            <td>SDP + ICE candidates</td>
-            <td><span class="tag yes">visible</span> — relayed as opaque text, never parsed or logged</td>
-            <td>Dropped the instant they are delivered</td>
+            <td data-th="Data">SDP + ICE candidates</td>
+            <td data-th="Relay visibility"><span class="flag flag-yes">visible</span> relayed as opaque text, never parsed or logged</td>
+            <td data-th="Lifetime">Dropped the instant they are delivered</td>
           </tr>
           <tr>
-            <td>Audio & video</td>
-            <td><span class="tag no">never</span> — peer-to-peer DTLS-SRTP</td>
-            <td>Does not exist on any server</td>
+            <td data-th="Data">Audio &amp; video</td>
+            <td data-th="Relay visibility"><span class="flag flag-no">never</span> peer-to-peer DTLS-SRTP</td>
+            <td data-th="Lifetime">Does not exist on any server</td>
           </tr>
           <tr>
-            <td>Name, email, account</td>
-            <td><span class="tag no">not collected</span> — there is nowhere to put it</td>
-            <td>—</td>
+            <td data-th="Data">Name, email, account</td>
+            <td data-th="Relay visibility"><span class="flag flag-no">not collected</span> there is nowhere to put it</td>
+            <td data-th="Lifetime">—</td>
           </tr>
           <tr>
-            <td>Call history, duration, contacts</td>
-            <td><span class="tag never">not stored</span> — the timer runs in your tab only</td>
-            <td>—</td>
+            <td data-th="Data">Call history, duration</td>
+            <td data-th="Relay visibility"><span class="flag flag-burn">not stored</span> the timer runs in your tab only</td>
+            <td data-th="Lifetime">—</td>
           </tr>
         </tbody>
       </table>
@@ -353,15 +472,16 @@
       </div>
     </div>
 
-    <div class="deploy-row reveal">
-      <div>
-        <div class="mono dim" style="margin-bottom:10px">Self-host the relay</div>
-        <p class="sec-copy" style="font-size:13px;max-width:44ch">
-          One Cloudflare Worker, one Durable Object, no database. Deploy it under
-          your own account in about a minute, then paste the URL into the room
-          settings.
+    <div class="deploy reveal">
+      <div class="deploy-copy">
+        <p class="deploy-kicker mono">Self-host the relay</p>
+        <h3 class="deploy-title">One Worker.<br><em>No database.</em></h3>
+        <p class="deploy-text">
+          A Cloudflare Worker plus one Durable Object, deployable under your own
+          account in about a minute. Paste the URL into the room settings and the
+          key never touches anybody else's edge.
         </p>
-        <button class="btn btn-ghost btn-sm magnetic" id="openDeploy" style="margin-top:14px">
+        <button class="btn btn-ghost btn-sm magnetic" id="openDeploy">
           <i data-lucide="external-link" aria-hidden="true"></i>Open the deploy runbook
         </button>
       </div>
@@ -378,22 +498,29 @@ cd nullnode
 
     <p class="fineprint reveal">
       Third-party requests on this page: Google Fonts (typefaces) and jsDelivr
-      (GSAP, Lenis, Lucide). They never see your media. Self-host the
-      assets to remove them entirely.
+      (GSAP, Lenis, Lucide). They never see your media. Self-host the assets to
+      remove them entirely.
     </p>
   </div>
 </section>
 
-<!-- FAQ -->
-<section class="section" id="faq" aria-labelledby="faqTitle">
+<!-- ============================================================
+     006 — FAQ (paper)
+     ============================================================ -->
+<section class="section stock-paper section-tight" id="faq" aria-labelledby="faqTitle">
   <div class="shell">
+    <div class="runhead reveal">
+      <span class="folio">006</span>
+      <span class="runhead-txt">Questions</span>
+      <span class="runhead-meta">p. 06</span>
+    </div>
+
     <div class="sec-head reveal">
       <div>
-        <div class="sec-num"><b>005</b><span class="bar" aria-hidden="true"></span>questions</div>
         <h2 class="sec-title" id="faqTitle">Fair<br><em>questions.</em></h2>
       </div>
-      <div>
-        <p class="sec-copy">
+      <div class="sec-stand">
+        <p class="standfirst">
           The short version: it is as private as a phone call between two people
           and no more. Here is what that means in practice.
         </p>
@@ -450,12 +577,12 @@ cd nullnode
       <details class="qa" name="faq">
         <summary><span class="q-idx">06</span><span class="q-txt">Is it open source? Can I self-host it?</span><span class="q-plus" aria-hidden="true"></span></summary>
         <div class="qa-body">
-          Both. The client is a static pair of pages — <code class="mono">index.html</code>
-          for the story, <code class="mono">app.html</code> for the room — with plain CSS
-          and ES5-style modules in <code class="mono">/assets</code>, served by GitHub
-          Pages. The signalling relay is one Cloudflare Worker with a single Durable
-          Object. Fork it, change the type, deploy under your own domain. MIT licensed,
-          no build step, no bundler, no dependencies at runtime except the CDN assets
+          Both. The client is a static pair of pages — <code>index.html</code> for
+          the story, <code>app.html</code> for the room — with plain CSS and
+          ES5-style modules in <code>/assets</code>, served by GitHub Pages. The
+          signalling relay is one Cloudflare Worker with a single Durable Object.
+          Fork it, change the type, deploy under your own domain. MIT licensed, no
+          build step, no bundler, no dependencies at runtime except the CDN assets
           listed above.
         </div>
       </details>
@@ -492,6 +619,80 @@ cd nullnode
 
 </main>
 
+<!-- ============================================================
+     COLOPHON — footer
+     ============================================================ -->
+<footer class="foot" aria-label="Colophon">
+  <div class="shell">
+    <div class="runhead foot-runhead">
+      <span class="folio">007</span>
+      <span class="runhead-txt">Colophon</span>
+      <span class="runhead-meta">end of issue</span>
+    </div>
+
+    <div class="foot-top">
+      <div class="foot-brandcol">
+        <p class="foot-brand">A room that<br><em>never existed.</em></p>
+        <p class="foot-lede">
+          NullNode is a static page, a small Cloudflare Worker and the browser's own
+          WebRTC. Nothing else is involved, and nothing is kept.
+        </p>
+        <a class="btn btn-primary btn-sm magnetic" href="app.html">
+          <i data-lucide="arrow-up-right" aria-hidden="true"></i>Open the room
+        </a>
+      </div>
+
+      <div class="foot-col">
+        <h5>The room</h5>
+        <ul>
+          <li><a href="#capabilities">01 — Capabilities</a></li>
+          <li><a href="#protocol">02 — Protocol</a></li>
+          <li><a href="#relay">03 — Relay</a></li>
+          <li><a href="#faq">04 — Questions</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h5>The code</h5>
+        <ul>
+          <li><a href="https://github.com/imfufuu/nullnode" target="_blank" rel="noopener noreferrer"><i data-lucide="github" aria-hidden="true"></i>Repository</a></li>
+          <li><a href="#relay"><i data-lucide="terminal" aria-hidden="true"></i>Self-host the relay</a></li>
+          <li><a href="docs/CREDENTIALS.md" target="_blank" rel="noopener noreferrer"><i data-lucide="lock" aria-hidden="true"></i>Credentials</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h5>Colophon</h5>
+        <ul class="foot-plain">
+          <li>Fraunces · display</li>
+          <li>Instrument Sans · text</li>
+          <li>JetBrains Mono · interface</li>
+          <li>Set by hand · no build step</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot-notes" id="notes">
+      <h5 class="mono">Notes</h5>
+      <ol>
+        <li id="note-1"><span>1</span>The key is minted in your browser from a 32-character alphabet. It is never registered: the relay simply answers for it while two sockets are open.</li>
+        <li id="note-2"><span>2</span>The idle TTL is a relay variable, two hours by default. The Durable Object deletes itself, alarm and all, after the last peer leaves.</li>
+        <li id="note-3"><span>3</span>“Burned” is literal in this codebase: the room key is deleted, both sockets close, and the interval that ran the call timer is cleared.</li>
+      </ol>
+    </div>
+
+    <div class="wordmark" aria-hidden="true">null<em>node</em></div>
+
+    <div class="foot-legal">
+      <span>© MMXXVI NullNode · MIT licence</span>
+      <span class="foot-legal-l">
+        <a href="https://github.com/imfufuu/nullnode" target="_blank" rel="noopener noreferrer">Source</a>
+        <a href="#top">Back to the top</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- DEPLOY MODAL -->
@@ -507,16 +708,16 @@ cd nullnode
       </button>
     </div>
     <div class="blob-box" style="margin-bottom:14px">
-      <div class="blob-label"><span>01 — clone &amp; deploy</span><button class="mono acid" id="copyDeploy" type="button">Copy</button></div>
+      <div class="blob-label"><span>01 — clone and deploy</span><button class="mono acid" id="copyDeploy" type="button">Copy</button></div>
       <textarea id="deployBlob" readonly spellcheck="false" style="height:132px">export CLOUDFLARE_API_TOKEN=...
 export CLOUDFLARE_ACCOUNT_ID=...
 git clone https://github.com/imfufuu/nullnode
 cd nullnode
 ./scripts/deploy-worker.sh</textarea>
     </div>
-    <p class="sec-copy" style="font-size:12.5px">
+    <p class="sec-note">
       The script prints your Worker URL and can write it straight into
-      <code class="mono">app.html</code>. No rebuild required.
+      <code>app.html</code>. No rebuild required.
     </p>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" data-close-modal>Close</button>

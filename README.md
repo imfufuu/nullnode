@@ -151,14 +151,14 @@ Modes:
 ## Repository map
 
 ```
-index.html                 product page — story, protocol, relay, faq
+index.html                 product page — cover, capabilities, protocol, relay, faq, colophon
 app.html                   the room — video, chat, files, board, modals
 assets/
   css/base.css             tokens, reset, nav, buttons, modals, page curtain
-  css/landing.css          hero, marquee, protocol, relay, faq, footer
+  css/landing.css          cover, ticker, spreads, protocol strip, colophon
   css/app.css              room shell, stage, deck, sidebar, board
   js/core.js               namespace, icons + fallbacks, toast, modals, curtain
-  js/landing.js            preloader, reveals, cursor, parallax, signal canvas
+  js/landing.js            preloader, reveals, magnetic, horizontal strip, plate
   js/rtc.js                media, signalling, data channel, telemetry
   js/chat.js               chat thread + chunked file transfer
   js/board.js              vector whiteboard, undo/redo, PNG export
@@ -182,14 +182,25 @@ deploy.env.example         template for local secrets
 
 ## Design notes
 
-- **Type**: Instrument Serif (display) against JetBrains Mono (interface) and
-  Instrument Sans (body), all self-describing and free.
-- **Palette**: ink `#08090a`, bone `#ede9df`, one acid green `#c8ff3d` and a
-  rust `#ff4d22` reserved for the two states that matter — denied and burned.
-- **Motion**: Lenis for the scroll, GSAP + ScrollTrigger for parallax and the
-  step reveals, IntersectionObserver for everything else. Every reveal is
-  additive: with JavaScript off or GSAP missing, the page renders fully, and
-  `prefers-reduced-motion` collapses all of it.
+- **Form**: the product page is set as a field manual — a numbered issue with
+  running heads, folios, figure captions, footnotes and a colophon. Seven
+  spreads in one grid, alternating between two stocks: `ink` (near-black paper)
+  and `paper` (bone stock, inverted). The metaphor is the product: a printed
+  manual for something that keeps nothing.
+- **Type**: Fraunces (display, variable optical size and SOFT/WONK axes) against
+  JetBrains Mono (interface, folios, footnotes) and Instrument Sans (body),
+  all free. Display sizes are fluid from 56 px to 168 px with `.82` leading and
+  `-0.042em` tracking.
+- **Palette**: ink `#0a0a0b` and bone `#ece8de` as the two stocks, one acid
+  `#c8ff3d` for live signal and `#637f0d` for acid on paper — the same hue
+  darkened enough to clear 4.5:1 on bone. Rust marks denied and burned states.
+  Every pair in the system is measured; nothing ships below 3:1.
+- **Motion**: Lenis for the scroll, GSAP + ScrollTrigger for the protocol strip
+  (vertical scroll drives a horizontal pan, pinned above 980 px), the ghost word
+  parallax and the entry drift; IntersectionObserver for reveals. Every reveal
+  is additive: with JavaScript off or GSAP missing, the page renders fully, and
+  `prefers-reduced-motion` collapses all of it. The strip degrades to a plain
+  vertical read below 980 px.
 - **Icons**: Lucide from jsDelivr with an inline fallback set, so a CDN outage
   costs nothing.
 - **No emoji, no lorem ipsum, no escaped markup, no placeholder states.**
