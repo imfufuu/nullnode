@@ -101,6 +101,26 @@ else ok('app.html links back to index.html');
 if (!/name="robots" content="noindex"/.test(html['app.html'])) bad('app.html should be noindex');
 else ok('app.html is noindex');
 
+/* the product page ships a footer, a wordmark and a build id; all three were
+   once dropped while landing.css kept styling them, so assert the markup. */
+for (const needle of ['<footer class="foot"', 'class="wordmark"', 'class="build-id"']) {
+  if (!html['index.html'].includes(needle)) bad('index.html is missing ' + needle);
+}
+if (!/<footer class="foot"[\s\S]*<\/footer>/.test(html['index.html'])) bad('index.html footer is unclosed');
+else ok('index.html footer, wordmark and build id present');
+
+/* Build id. The source ships vX.Y.Z+build.__BUILD__ and pages.yml substitutes
+   the date and commit at assemble time, so the deployed page names its own
+   artefact without the source needing to contain its own hash. Accept either
+   the placeholder or a stamped value; reject anything else. */
+const build = html['index.html'].match(/class="build-id"[^>]*>([^<]+)</);
+const STAMPED = /^v\d+\.\d+\.\d+\+build\.\d{8}\.[0-9a-f]{7}$/;
+const PLACEHOLDER = /^v\d+\.\d+\.\d+\+build\.__BUILD__$/;
+if (!build) bad('no build id text');
+else if (STAMPED.test(build[1].trim())) ok(`build id ${build[1].trim()}`);
+else if (PLACEHOLDER.test(build[1].trim())) ok(`build id ${build[1].trim()} (stamped at deploy)`);
+else bad(`build id is not vX.Y.Z+build.YYYYMMDD.sha7 or the __BUILD__ placeholder ("${build[1]}")`);
+
 /* ---------- 6. relay meta ---------- */
 console.log('\nrelay');
 for (const [page, source] of Object.entries(html)) {
@@ -125,6 +145,11 @@ for (const w of ['TODO', 'FIXME', 'XXX']) if (all.includes(w)) bad(`${w} left in
 ok('no placeholders');
 if (/localhost|127\.0\.0\.1/.test(all)) bad('localhost reference in shipped files');
 else ok('no localhost references');
+/* the deploy stamp placeholder is allowed in source but must be the only one,
+   so a half-substituted build fails loudly rather than shipping a bare token */
+const placeholders = (all.match(/__BUILD__/g) || []).length;
+if (placeholders > 1) bad(`__BUILD__ appears ${placeholders} times; only the footer build id may carry it`);
+else ok('build placeholder scoped to the footer');
 if (/console\.log\(/.test(jsFiles.map((f) => read('assets/js/' + f)).join('\n'))) bad('console.log left in a shipped script');
 else ok('no console.log in shipped scripts');
 

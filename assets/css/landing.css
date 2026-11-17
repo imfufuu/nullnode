@@ -198,6 +198,11 @@ table.relay tr:hover td{background:rgba(237,233,223,.02)}
   padding:20px 0 26px;border-top:1px solid var(--line);margin-top:clamp(20px,3vw,34px);
   font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-ghost)}
 .foot-legal .l{display:flex;gap:18px;flex-wrap:wrap}
+/* build identifier — deliberately quiet: same size as the legal line, no accent */
+.build-id{letter-spacing:.06em;text-transform:none;opacity:.72;
+  transition:opacity .3s,color .3s;cursor:help}
+.build-id:hover{opacity:1;color:var(--bone-dim)}
+@media (max-width:640px){.build-id{letter-spacing:.03em;font-size:9px}}
 
 /* ============================================================
    deploy modal — textarea furniture

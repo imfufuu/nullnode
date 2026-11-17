@@ -15,12 +15,20 @@ import http from 'node:http';
 import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT || 8080);
 const RELAY = new URL(process.env.RELAY || 'http://127.0.0.1:8787');
 const relayHost = RELAY.hostname;
 const relayPort = Number(RELAY.port || 80);
+
+/* Mirror what pages.yml does at assemble time so local HTML shows the same
+   version string the deployed build will. */
+let STAMP = '__BUILD__';
+try {
+  STAMP = `${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.${execSync('git rev-parse --short=7 HEAD', { cwd: ROOT, encoding: 'utf8' }).trim()}`;
+} catch {}
 
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -74,7 +82,7 @@ const server = http.createServer((req, res) => {
       data.toString('utf8').replace(
         /<meta name="nullnode-relay" content="[^"]*">/,
         `<meta name="nullnode-relay" content="${relayUrl}">`
-      )
+      ).replace(/__BUILD__/g, STAMP)
     );
   }
   res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-store' });
