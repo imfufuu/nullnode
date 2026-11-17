@@ -220,7 +220,6 @@ body.cursor-copy .cursor-dot{opacity:0}
 .fp-block{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:rgba(237,233,223,.025)}
 .fp-block span{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-ghost)}
 .fp-block code{font-family:var(--font-mono);font-size:11px;line-height:1.75;color:var(--bone);word-break:break-all}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ============================================================
    page curtain — product page ⇄ room
