@@ -1,5 +1,7 @@
 /* ============================================================
-   NullNode · product page
+   NullNode · product page — scroll, type, strip, plate
+   Everything here is additive: without GSAP, Lenis or JS the page
+   still renders, reads and navigates as a normal long document.
    ============================================================ */
 (function () {
   'use strict';
@@ -29,7 +31,7 @@
       var target = document.querySelector(id);
       if (!target) return;
       e.preventDefault();
-      if (lenis) lenis.scrollTo(target, { offset: -64, duration: 1.3 });
+      if (lenis) lenis.scrollTo(target, { offset: -60, duration: 1.3 });
       else target.scrollIntoView({ behavior: NN.reduce ? 'auto' : 'smooth', block: 'start' });
       if (history.replaceState) history.replaceState(null, '', id);
     });
@@ -46,10 +48,11 @@
       entries.forEach(function (en) {
         if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
       });
-    }, { threshold: 0.01, rootMargin: '0px 0px -7% 0px' });
+    }, { threshold: 0.01, rootMargin: '0px 0px -6% 0px' });
     els.forEach(function (el) { io.observe(el); });
   }
 
+  /* ---------- hero: letter-by-letter, kept inside the line mask ---------- */
   function splitHero() {
     var sc = $('.split-chars');
     if (!sc) return;
@@ -58,7 +61,7 @@
     Array.prototype.slice.call(txt).forEach(function (ch, i) {
       var s = document.createElement('span');
       s.textContent = ch === ' ' ? '\u00A0' : ch;
-      s.style.transitionDelay = (120 + i * 42) + 'ms';
+      s.style.transitionDelay = (140 + i * 46) + 'ms';
       sc.appendChild(s);
     });
     sc.setAttribute('aria-label', txt);
@@ -66,7 +69,7 @@
 
   /* ---------- preloader ---------- */
   var boot = $('#boot'), bootNum = $('#bootNum'), bootBar = $('#bootBar'), bootLogs = $$('#bootLog p');
-  var bootStart = performance.now(), bootDur = NN.reduce ? 1 : 1080, bootDone = false;
+  var bootStart = performance.now(), bootDur = NN.reduce ? 1 : 1060, bootDone = false;
 
   function endBoot(thenReveal) {
     if (bootDone) return;
@@ -100,47 +103,105 @@
     requestAnimationFrame(bootTick);
   }
 
-  /* ---------- nav ---------- */
-  var nav = $('#nav'), lastY = 0;
+  /* ---------- masthead: hide on the way down, reading progress on the rule ---------- */
+  var nav = $('#nav'), progress = $('#navProgress i'), lastY = 0;
   function onScroll() {
     var y = window.scrollY || window.pageYOffset;
     if (nav) {
       nav.classList.toggle('scrolled', y > 24);
-      if (y > 420 && y > lastY + 4) nav.classList.add('hide');
-      else if (y < lastY - 4 || y < 300) nav.classList.remove('hide');
+      if (y > 520 && y > lastY + 4) nav.classList.add('hide');
+      else if (y < lastY - 4 || y < 380) nav.classList.remove('hide');
+    }
+    if (progress) {
+      var doc = document.documentElement;
+      var max = (doc.scrollHeight - window.innerHeight) || 1;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, y / max)).toFixed(4) + ')';
+      progress.style.transformOrigin = '0 50%';
+      progress.style.width = '100%';
     }
     lastY = y;
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  /* ---------- magnetic ---------- */
+  /* ---------- magnetic controls ---------- */
   if (NN.fine && !NN.reduce) {
     $$('.magnetic').forEach(function (el) {
       el.addEventListener('mousemove', function (e) {
         var r = el.getBoundingClientRect();
         var x = (e.clientX - r.left - r.width / 2) / r.width;
         var y = (e.clientY - r.top - r.height / 2) / r.height;
-        el.style.transform = 'translate(' + (x * 9).toFixed(2) + 'px,' + (y * 6).toFixed(2) + 'px)';
+        el.style.transform = 'translate(' + (x * 8).toFixed(2) + 'px,' + (y * 5).toFixed(2) + 'px)';
       });
       el.addEventListener('mouseleave', function () { el.style.transform = ''; });
     });
   }
 
-  /* ---------- parallax ---------- */
+  /* ---------- the protocol strip: vertical scroll becomes horizontal ---------- */
+  function rail() {
+    var section = $('#protocol'), track = $('#railTrack'), steps = $('#railSteps'), dots = $$('#railDots i');
+    if (!section || !track || !steps) return;
+    var wide = window.matchMedia('(min-width: 980px)');
+    var st = null, tween = null;
+
+    function paintDots(p) {
+      var active = Math.min(dots.length - 1, Math.max(0, Math.floor(p * dots.length + 0.001)));
+      dots.forEach(function (d, i) { d.classList.toggle('on', i === active); });
+    }
+
+    function build() {
+      if (!window.gsap || !window.ScrollTrigger || NN.reduce || !wide.matches) return;
+      section.classList.add('is-pinned');
+      var distance = function () { return Math.max(0, steps.scrollWidth - track.clientWidth); };
+      if (distance() < 40) { destroy(); return; }
+      tween = window.gsap.to(steps, {
+        x: function () { return -distance(); },
+        ease: 'none',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: function () { return '+=' + distance(); },
+          pin: true,
+          scrub: 0.6,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+          onUpdate: function (self) { paintDots(self.progress); }
+        }
+      });
+      st = tween.scrollTrigger;
+      paintDots(0);
+    }
+
+    function destroy() {
+      section.classList.remove('is-pinned');
+      if (tween) { if (tween.scrollTrigger) tween.scrollTrigger.kill(); tween.kill(); }
+      tween = st = null;
+      steps.style.transform = '';
+    }
+
+    build();
+    window.addEventListener('resize', function () {
+      if (!st && wide.matches && window.gsap) build();
+      else if (st && !wide.matches) destroy();
+    });
+    if (window.ScrollTrigger) window.ScrollTrigger.addEventListener('refreshInit', function () { steps.style.transform = ''; });
+  }
+  rail();
+
+  /* ---------- the ghost word drifts slower than the page ---------- */
   if (window.gsap && window.ScrollTrigger && !NN.reduce) {
     var ghost = $('.hero-ghost');
     if (ghost) {
-      window.gsap.to(ghost, { yPercent: -18, ease: 'none',
+      window.gsap.to(ghost, { yPercent: -16, ease: 'none',
         scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
     }
-    $$('.step').forEach(function (step) {
-      window.gsap.fromTo(step, { y: 18 }, { y: 0, ease: 'none',
-        scrollTrigger: { trigger: step, start: 'top bottom', end: 'top 60%', scrub: true } });
+    $$('.entry').forEach(function (entry, i) {
+      window.gsap.fromTo(entry, { y: 16 }, { y: 0, ease: 'none',
+        scrollTrigger: { trigger: entry, start: 'top bottom', end: 'top 62%', scrub: true } });
     });
   }
 
-  /* ---------- signal canvas ---------- */
+  /* ---------- signal plate ---------- */
   var canvas = $('#signal');
   if (canvas && canvas.getContext) {
     try {
@@ -158,32 +219,32 @@
       window.addEventListener('resize', sizeCanvas);
       function node(x, y, r, on) {
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = on ? 'rgba(200,255,61,.85)' : 'rgba(237,233,223,.28)';
+        ctx.strokeStyle = on ? 'rgba(200,255,61,.8)' : 'rgba(236,232,222,.3)';
         ctx.lineWidth = 1; ctx.stroke();
-        ctx.beginPath(); ctx.arc(x, y, 2.1, 0, Math.PI * 2);
-        ctx.fillStyle = on ? '#c8ff3d' : 'rgba(237,233,223,.4)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = on ? '#c8ff3d' : 'rgba(236,232,222,.42)'; ctx.fill();
       }
       function draw() {
         if (!W || !H) sizeCanvas();
         ctx.clearRect(0, 0, W, H);
-        var pad = 26, ax = pad + 8, ay = H * 0.5, bx = W - pad - 8, by = H * 0.5;
-        ctx.setLineDash([2, 5]); ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(237,233,223,.16)';
+        var pad = 24, ax = pad + 8, ay = H * 0.46, bx = W - pad - 8, by = H * 0.46;
+        ctx.setLineDash([1, 6]); ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(236,232,222,.18)';
         ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
         ctx.setLineDash([]);
         for (var k = 0; k < 3; k++) {
           var p = ((t / 90) + k / 3) % 1;
           var px = ax + (bx - ax) * p;
-          ctx.beginPath(); ctx.arc(px, by, 2.4, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(200,255,61,' + (0.6 * (1 - Math.abs(p - 0.5) * 1.2)).toFixed(3) + ')';
+          ctx.beginPath(); ctx.arc(px, by, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(200,255,61,' + (0.62 * (1 - Math.abs(p - 0.5) * 1.2)).toFixed(3) + ')';
           ctx.fill();
         }
         node(ax, ay, 9 + Math.sin(t / 40) * 0.8, true);
         node(bx, by, 9 + Math.sin(t / 40 + 1.6) * 0.8, false);
         ctx.font = '400 8px "JetBrains Mono", monospace';
-        ctx.fillStyle = 'rgba(237,233,223,.42)';
-        ctx.textAlign = 'left'; ctx.fillText('YOU', ax - 9, ay + 26);
-        ctx.textAlign = 'right'; ctx.fillText('PEER', bx + 9, by + 26);
+        ctx.fillStyle = 'rgba(236,232,222,.44)';
+        ctx.textAlign = 'left'; ctx.fillText('YOU', ax - 8, ay + 27);
+        ctx.textAlign = 'right'; ctx.fillText('PEER', bx + 8, by + 27);
         t += 1;
       }
       function loopCanvas() { draw(); raf2 = requestAnimationFrame(loopCanvas); }
@@ -195,7 +256,7 @@
     } catch (e) {}
   }
 
-  /* ---------- deploy modal ---------- */
+  /* ---------- deploy runbook ---------- */
   var openDeploy = $('#openDeploy');
   if (openDeploy) openDeploy.addEventListener('click', function (e) { e.preventDefault(); NN.modal('deployModal', true); });
   var copyDeploy = $('#copyDeploy');
