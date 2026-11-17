@@ -101,6 +101,20 @@ else ok('app.html links back to index.html');
 if (!/name="robots" content="noindex"/.test(html['app.html'])) bad('app.html should be noindex');
 else ok('app.html is noindex');
 
+/* the product page ships a footer, a wordmark and a build id; all three were
+   once dropped while landing.css kept styling them, so assert the markup. */
+for (const needle of ['<footer class="foot"', 'class="wordmark"', 'class="build-id"']) {
+  if (!html['index.html'].includes(needle)) bad('index.html is missing ' + needle);
+}
+if (!/<footer class="foot"[\s\S]*<\/footer>/.test(html['index.html'])) bad('index.html footer is unclosed');
+else ok('index.html footer, wordmark and build id present');
+
+/* build id must look like a real version, not a placeholder */
+const build = html['index.html'].match(/class="build-id"[^>]*>([^<]+)</);
+if (!build) bad('no build id text');
+else if (!/^v\d+\.\d+\.\d+\+build\.\d{8}\.[0-9a-f]{7}$/.test(build[1].trim())) bad(`build id is not vX.Y.Z+build.YYYYMMDD.sha7 ("${build[1]}")`);
+else ok(`build id ${build[1].trim()}`);
+
 /* ---------- 6. relay meta ---------- */
 console.log('\nrelay');
 for (const [page, source] of Object.entries(html)) {

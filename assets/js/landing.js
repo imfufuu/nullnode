@@ -198,6 +198,8 @@
   /* ---------- deploy modal ---------- */
   var openDeploy = $('#openDeploy');
   if (openDeploy) openDeploy.addEventListener('click', function (e) { e.preventDefault(); NN.modal('deployModal', true); });
+  var openDeployFoot = $('#openDeployFoot');
+  if (openDeployFoot) openDeployFoot.addEventListener('click', function (e) { e.preventDefault(); NN.modal('deployModal', true); });
   var copyDeploy = $('#copyDeploy');
   if (copyDeploy) copyDeploy.addEventListener('click', function () {
     var t = $('#deployBlob');
