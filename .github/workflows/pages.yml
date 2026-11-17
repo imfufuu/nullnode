@@ -49,6 +49,16 @@ jobs:
           cp index.html app.html _site/
           cp -R assets _site/assets
           printf '' > _site/.nojekyll
+
+          # Stamp the build id. index.html ships v1.1.0+build.__BUILD__ and the
+          # deployed copy carries the real commit, so the number a visitor sees
+          # always names the artefact they are actually reading. Keeping it out
+          # of the source avoids a commit that has to contain its own hash.
+          STAMP="$(date -u +%Y%m%d).$(git rev-parse --short=7 HEAD)"
+          sed -i "s/__BUILD__/${STAMP}/g" _site/index.html
+          echo "build stamp: ${STAMP}"
+          grep -o 'v[0-9.]*+build\.[0-9]*\.[0-9a-f]*' _site/index.html
+
           find _site -type f | sort | xargs ls -lh
 
       - uses: actions/upload-pages-artifact@v3
