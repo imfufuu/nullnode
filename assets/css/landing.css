@@ -199,14 +199,22 @@ table.relay tr:hover td{background:rgba(237,233,223,.02)}
   font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-ghost)}
 .foot-legal .l{display:flex;gap:18px;flex-wrap:wrap}
 
+/* ============================================================
+   deploy modal — textarea furniture
+   Lives here rather than in app.css: the product page never loads
+   app.css, so the deploy modal's textarea was previously unstyled.
    ============================================================ */
-.mode-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  padding:10px 16px;border-top:1px solid var(--line);background:rgba(237,233,223,.02)}
-.js .mask-lines .ln > .split-chars{transform:none;transition:none}
-.mask-lines .split-chars span{display:inline-block;transform:translateY(112%);
-  transition:transform 1s var(--ease-out)}
-.js .mask-lines.in .split-chars span{transform:none}
-.mask-lines .split-chars{white-space:pre}
+.blob-box{max-width:720px}
+.blob-box textarea{width:100%;height:82px;resize:none;border:1px solid var(--line);border-radius:12px;
+  background:rgba(237,233,223,.03);color:var(--bone-dim);font-family:var(--font-mono);font-size:10.5px;
+  line-height:1.5;padding:12px;outline:none;word-break:break-all}
+.blob-box textarea:focus{border-color:rgba(200,255,61,.45)}
+.blob-label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-ghost)}
+
+/* ============================================================
+   deploy runbook block
+   ============================================================ */
 .deploy-row{display:grid;grid-template-columns:1fr;gap:clamp(18px,3vw,28px);align-items:center;
   margin-top:clamp(32px,5vw,58px);padding:clamp(20px,3vw,32px);border:1px solid var(--line);border-radius:20px;
   background:linear-gradient(160deg,rgba(200,255,61,.045),transparent 55%)}
@@ -219,10 +227,6 @@ table.relay tr:hover td{background:rgba(237,233,223,.02)}
 .snippet pre code{font:inherit;white-space:pre}
 .snippet-copy{position:absolute;right:10px;bottom:10px;height:30px;font-size:9px;padding:0 11px}
 .fineprint{margin:clamp(18px,3vw,28px) 0 0;font-size:11px;line-height:1.75;color:var(--bone-ghost);max-width:74ch}
-.fp-block{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;
-  margin-bottom:10px;background:rgba(237,233,223,.025)}
-.fp-block span{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-ghost)}
-.fp-block code{font-family:var(--font-mono);font-size:11px;line-height:1.75;color:var(--bone);word-break:break-all}
 .qa-body code{font-family:var(--font-mono);font-size:11px;color:var(--acid);background:var(--acid-dim);padding:1px 5px;border-radius:4px}
 /* ============================================================
    capabilities — three channels, one connection

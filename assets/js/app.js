@@ -146,14 +146,21 @@
     });
     if (E.joinForm) E.joinForm.addEventListener('submit', function (e) {
       e.preventDefault();
-      var code = (E.codeInput.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (code.length !== 6) { NN.toast('Six characters, no spaces'); E.codeInput.focus(); return; }
+      var code = NN.RTC.normaliseCode(E.codeInput.value);
+      if (code.length !== NN.RTC.CODE_LEN) { NN.toast('Six characters, no spaces'); E.codeInput.focus(); return; }
+      if (!NN.RTC.isCode(code)) {
+        NN.toast('Room keys never contain 0, O, 1, I or L — read it again');
+        E.codeInput.focus();
+        return;
+      }
       if (mode === 'airgap') NN.RTC.setMode('airgap', true);
       NN.RTC.joinRoom(code);
     });
     if (E.codeInput) {
       E.codeInput.addEventListener('input', function () {
-        var v = E.codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        /* Strip the characters the relay can never mint, so a typo surfaces
+           while typing rather than as an opaque rejection later. */
+        var v = NN.RTC.normaliseCode(E.codeInput.value).replace(/[01OIL]/g, '');
         if (v !== E.codeInput.value) E.codeInput.value = v;
       });
     }
@@ -451,11 +458,14 @@
 
     /* deep link ?r=CODE */
     var code = '';
-    try { code = (new URL(location.href).searchParams.get('r') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); } catch (e) {}
-    if (code.length === 6) {
+    try { code = NN.RTC.normaliseCode(new URL(location.href).searchParams.get('r')); } catch (e) {}
+    if (code.length === NN.RTC.CODE_LEN && NN.RTC.isCode(code)) {
       if (E.codeInput) E.codeInput.value = code;
       NN.toast('Invite found · joining ' + code);
       setTimeout(function () { NN.RTC.joinRoom(code); }, 500);
+    } else if (code.length) {
+      if (E.codeInput) E.codeInput.value = code.replace(/[01OIL]/g, '');
+      NN.toast('That invite link holds an invalid key');
     }
 
     window.addEventListener('beforeunload', function () {

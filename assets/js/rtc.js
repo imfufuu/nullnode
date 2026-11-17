@@ -13,6 +13,22 @@
   };
   var CHANNEL = 'nn-data';
 
+  /* The relay mints keys from a 31-character alphabet that omits 0/O/1/I/L so a
+     key read aloud cannot be mistyped. Mirror it here: anything outside it can
+     never resolve, so reject it locally with a helpful message instead of
+     letting the relay answer bad_code. */
+  var ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  var CODE_LEN = 6;
+  function normaliseCode(raw) {
+    return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LEN);
+  }
+  function isAmbiguous(s) { return /[01OIL]/.test(String(s || '').toUpperCase()); }
+  function isCode(s) {
+    if (typeof s !== 'string' || s.length !== CODE_LEN) return false;
+    for (var i = 0; i < s.length; i++) if (ALPHABET.indexOf(s.charAt(i)) < 0) return false;
+    return true;
+  }
+
   var S = {
     mode: 'airgap', relay: '', code: '', role: null, state: 'idle',
     pc: null, ws: null, dc: null, channelOpen: false,
@@ -416,8 +432,16 @@
   }
 
   function joinRoom(raw) {
-    var code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-    if (code.length !== 6) { emit('toast', 'A room key is six characters'); return Promise.resolve(false); }
+    var code = normaliseCode(raw);
+    if (code.length !== CODE_LEN) {
+      emit('toast', 'A room key is six characters');
+      return Promise.resolve(false);
+    }
+    if (!isCode(code)) {
+      var amb = /[0O]/.test(code) ? '0 and O' : /[1IL]/.test(code) ? '1, I and L' : 'that character';
+      emit('toast', 'Room keys never contain ' + amb + ' — read the key again');
+      return Promise.resolve(false);
+    }
     return ensureMedia().then(function (ok) {
       if (!ok) return false;
       S.code = code;
@@ -588,6 +612,11 @@
     checkRelay: checkRelay,
     createRoom: createRoom,
     joinRoom: joinRoom,
+    normaliseCode: normaliseCode,
+    isCode: isCode,
+    isAmbiguous: isAmbiguous,
+    ALPHABET: ALPHABET,
+    CODE_LEN: CODE_LEN,
     hangup: hangup,
     airgapBegin: airgapBegin,
     airgapAnswer: airgapAnswer,

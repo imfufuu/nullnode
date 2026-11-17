@@ -51,7 +51,7 @@ text and then forgets the room key.
 
 Room lifecycle:
 
-1. **Create** — `POST /rooms` mints a six-character key from a 32-character
+1. **Create** — `POST /rooms` mints a six-character key from a 31-character
    alphabet (no `0/O/1/I/L`). Nothing is written down; the key *is* the address.
 2. **Handshake** — both peers open `/rooms/:key/ws`. The relay assigns
    `host` / `guest` by arrival order, forwards `sdp` and `ice` frames verbatim,
