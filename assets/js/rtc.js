@@ -104,9 +104,20 @@
       return Promise.resolve(false);
     }
     emit('state', S.state === 'idle' ? 'handshake' : S.state, { title: 'Requesting access', sub: 'answer the browser prompt' });
+    /* min + ideal, not ideal alone: `ideal` lets the browser hand back 320x240
+       and report success, which is exactly how a call ends up blurry with no
+       error to point at. The min floor keeps it at least 640x480; ideal asks
+       for 720p and is allowed to win where the device supports it. Frame rate
+       is capped at 30 so the encoder spends bits on detail, not on doubling
+       frames the eye cannot resolve. */
     return navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+      video: {
+        width: { min: 640, ideal: 1280 },
+        height: { min: 480, ideal: 720 },
+        frameRate: { ideal: 30, max: 30 },
+        facingMode: 'user'
+      }
     }).then(function (stream) {
       S.local = stream;
       emit('media', stream);
@@ -203,6 +214,68 @@
     startTimer();
     startStats();
     readFingerprints();
+    tuneVideoSender();
+  }
+
+  /* ---------------- quality tuning ----------------
+     WebRTC starts each video sender at a conservative bitrate and only ramps
+     up as bandwidth estimates improve, with no ceiling. On a 720p call that
+     means the first seconds look soft and a good link still never reaches its
+     potential. These parameters set an explicit floor and ceiling and tell the
+     encoder to favour sharpness over frame rate when it has to give something
+     up. Everything here is best-effort: browsers expose different subsets, so
+     each step is guarded and failure is silent.
+     See https://w3c.github.io/webrtc-pc/#dom-rtcrtpsender-setparameters */
+  var QUALITY = {
+    /* bits per second. 720p at 30fps needs roughly 1.5-2.5 Mbps for a clean
+       face; screen text needs more because detail survives badly in motion. */
+    video: { maxBitrate: 2500000, minBitrate: 900000, maxFramerate: 30 },
+    screen: { maxBitrate: 4000000, minBitrate: 1200000, maxFramerate: 15 }
+  };
+
+  function videoSender() {
+    if (!S.pc || !S.pc.getSenders) return null;
+    return S.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0] || null;
+  }
+
+  function tuneVideoSender(profile) {
+    var sender = videoSender();
+    if (!sender || typeof sender.getParameters !== 'function') return;
+    var q = profile === 'screen' ? QUALITY.screen : QUALITY.video;
+
+    /* setParameters validates the whole dictionary and rejects it outright if
+       any field is unsupported, so a rich attempt that fails would silently
+       leave the sender on browser defaults. Try the full profile, then drop
+       the optional fields one at a time; maxBitrate alone is the one that
+       actually fixes a soft picture, so it is the last thing to go. */
+    var attempts = [
+      { maxBitrate: q.maxBitrate, minBitrate: q.minBitrate, maxFramerate: q.maxFramerate, degradationPreference: 'maintain-resolution' },
+      { maxBitrate: q.maxBitrate, maxFramerate: q.maxFramerate, degradationPreference: 'maintain-resolution' },
+      { maxBitrate: q.maxBitrate, maxFramerate: q.maxFramerate },
+      { maxBitrate: q.maxBitrate }
+    ];
+    (function apply(i) {
+      if (i >= attempts.length) return;
+      var want = attempts[i];
+      try {
+        var p = sender.getParameters();
+        if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+        if (want.maxBitrate) p.encodings[0].maxBitrate = want.maxBitrate;
+        if (want.minBitrate) p.encodings[0].minBitrate = want.minBitrate;
+        if (want.maxFramerate) p.encodings[0].maxFramerate = want.maxFramerate;
+        if (want.degradationPreference) p.degradationPreference = want.degradationPreference;
+        sender.setParameters(p).catch(function () { apply(i + 1); });
+      } catch (e) { apply(i + 1); }
+    })(0);
+
+    /* contentHint is an older hint that survives even where setParameters is
+       only partly supported. 'detail' keeps faces sharp; 'text' tells the
+       encoder to protect edges during screen share. */
+    try {
+      if (sender.track && 'contentHint' in sender.track) {
+        sender.track.contentHint = profile === 'screen' ? 'text' : 'detail';
+      }
+    } catch (e) {}
   }
 
   /* ---------------- offer / answer ---------------- */
@@ -564,15 +637,25 @@
   function shareScreen() {
     if (!S.pc) { emit('toast', 'Start a call first'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { emit('toast', 'Screen share unsupported here'); return; }
-    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false }).then(function (ss) {
+    /* Ask for the real surface size rather than letting the browser default to
+       640x480 — shared text is unreadable at that resolution even on a perfect
+       link. frameRate stays low so the extra bits go to sharpness. */
+    navigator.mediaDevices.getDisplayMedia({
+      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 15, max: 30 } },
+      audio: false
+    }).then(function (ss) {
       var sender = S.pc.getSenders().filter(function (s) { return s.track && s.track.kind === 'video'; })[0];
       if (!sender) { emit('toast', 'No video sender'); return; }
       var cam = sender.track;
       sender.replaceTrack(ss.getVideoTracks()[0]);
+      tuneVideoSender('screen');
       emit('sharing', true);
       emit('toast', 'Sharing screen');
       ss.getVideoTracks()[0].onended = function () {
+        /* Restore both the camera track and the call bitrate profile, or the
+           sender stays tuned for text and the face looks soft afterwards. */
         if (cam) sender.replaceTrack(cam).catch(function () {});
+        tuneVideoSender('camera');
         emit('sharing', false);
         emit('toast', 'Screen share ended');
       };
